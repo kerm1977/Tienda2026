@@ -1,0 +1,106 @@
+<!-- Nombre del archivo: templates/chat.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid flex-grow-1 d-flex p-0" style="height: calc(100vh - 56px);">
+    
+    <div class="d-none d-md-flex flex-column border-end shadow-sm" style="width: 320px; background: rgba(255,255,255,0.7); backdrop-filter: blur(5px);">
+        <div class="p-3 border-bottom bg-white">
+            <h5 class="mb-2 fw-bold text-dark"><i class="bi bi-people-fill dynamic-text"></i> Contactos</h5>
+            <input type="text" id="search-contacts-desktop" class="form-control form-control-sm rounded-pill bg-light" placeholder="Buscar usuario...">
+        </div>
+        <div class="list-group list-group-flush chat-scroll-area flex-grow-1 bg-transparent" id="users-list-desktop">
+            <!-- Rellenado vía JS -->
+        </div>
+    </div>
+
+    <div class="d-flex flex-column flex-grow-1 position-relative" style="background: rgba(255,255,255,0.4);">
+        
+        <!-- Header del Chat Actual -->
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center shadow-sm bg-white" style="z-index: 10;">
+            <!-- Botón Contactos Móvil -->
+            <button class="btn btn-light border d-md-none me-2" data-bs-toggle="modal" data-bs-target="#contactosModal">
+                <i class="bi bi-list"></i>
+            </button>
+            
+            <h5 class="mb-0 text-truncate flex-grow-1 fw-bold text-dark" id="chat-title">
+                <i class="bi bi-chat-dots text-muted"></i> Selecciona un chat
+            </h5>
+        </div>
+        
+        <!-- Historial de mensajes -->
+        <div class="flex-grow-1 p-3 p-md-4 chat-scroll-area" id="chat-box">
+            <div id="welcome-screen" class="h-100 d-flex flex-column justify-content-center align-items-center text-muted">
+                <div class="text-center bg-white p-5 rounded-4 shadow-sm border">
+                    <i class="bi bi-inboxes dynamic-text mb-3" style="font-size: 3rem;"></i>
+                    <h4>Bandeja de Mensajes</h4>
+                    <p class="mb-0">Selecciona un contacto en el panel lateral para iniciar.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-3 border-top bg-white">
+            <form id="chat-form" class="m-0">
+                <input type="hidden" id="current_user_id" value="{{ session.get('user_id') }}">
+                <input type="hidden" id="current_user_nombre" value="{{ session.get('user_nombre') }}">
+                
+                <div id="upload-status" class="dynamic-text small fw-bold mb-2 text-center" style="display: none;">Subiendo archivo, por favor espera...</div>
+                
+                <div class="input-group input-group-lg shadow-sm">
+                    <label class="input-group-text bg-white border-end-0 dynamic-text" style="cursor: pointer;" title="Adjuntar">
+                        <i class="bi bi-paperclip fs-4"></i>
+                        <input type="file" id="file-input" hidden accept=".jpg,.png,.svg,.gif,.mp3,.mp4,.docx,.pdf,.txt,.json,.zip">
+                    </label>
+                    <input type="text" id="chat-input" class="form-control border-start-0 border-end-0 bg-white" placeholder="Escribe un mensaje..." autocomplete="off">
+                    <button class="btn dynamic-btn px-4" type="submit" id="btn-enviar">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE CONTACTOS (MÓVIL) -->
+<div class="modal fade" id="contactosModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content border-0">
+            <div class="modal-header dynamic-nav border-0">
+                <h5 class="modal-title fw-bold" style="color: var(--text-on-accent);"><i class="bi bi-people-fill me-2"></i> Contactos</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0 bg-light">
+                <div class="p-3 border-bottom bg-white">
+                    <input type="text" id="search-contacts-mobile" class="form-control rounded-pill bg-light" placeholder="Buscar...">
+                </div>
+                <div class="list-group list-group-flush bg-transparent" id="users-list-mobile">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Borrar Mensajes -->
+<div class="modal fade" id="modalBorrarMsg" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0">
+                <h6 class="modal-title fw-bold"><i class="bi bi-trash3 me-2"></i> Eliminar Mensaje</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <input type="hidden" id="delete-msg-id">
+                <p class="text-muted small mb-4">¿Qué deseas hacer con este mensaje?</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary" onclick="confirmarBorrado('mi')">Eliminar solo para mí</button>
+                    <button class="btn btn-danger" id="btn-borrar-todos" onclick="confirmarBorrado('todos')">Eliminar para todos</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+<script src="{{ url_for('static', filename='js/chat.js') }}?v=11.0"></script>
+{% endblock %}

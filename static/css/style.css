@@ -1,0 +1,153 @@
+/* Nombre del archivo: static/css/style.css */
+
+/* STREAMING_CHUNK:Configurando el fondo animado del universo... */
+.animated-bg {
+position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh;
+z-index: -2;
+background: linear-gradient(45deg, #330a2c, #0a3545, #33330a, #220a33, #330a0a, #0a3316);
+background-size: 600% 600%;
+animation: subtleColorShift 45s ease infinite;
+}
+
+.animated-bg::after {
+content: "";
+position: absolute;
+top: 0; left: 0; right: 0; bottom: 0;
+background: radial-gradient(circle at 15% 50%, transparent 20%, rgba(0,0,0,0.8) 100%),
+url('../img/stardust1.png');
+pointer-events: none;
+}
+
+@keyframes subtleColorShift {
+0% { background-position: 0% 50%; }
+50% { background-position: 100% 50%; }
+100% { background-position: 0% 50%; }
+}
+
+/* STREAMING_CHUNK:Definiendo variables nativas para opacidad y blur... /
+/ =========================================
+CONTROL DE BLUR Y OPACIDAD GLOBAL
+========================================= */
+:root {
+--chat-bg-opacity: 0.1;
+--chat-blur: 5px;
+}
+
+body {
+background: #000 !important;
+color: #fff;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+min-height: 100vh;
+overflow-x: hidden;
+}
+
+/* El pseudo-elemento que aplica el cristal a todo el fondo usando las variables */
+body::before {
+content: "";
+position: fixed;
+top: 0; left: 0; width: 100vw; height: 100vh;
+background-color: rgba(0, 0, 0, var(--chat-bg-opacity)) !important;
+backdrop-filter: blur(var(--chat-blur));
+-webkit-backdrop-filter: blur(var(--chat-blur));
+z-index: -1;
+pointer-events: none;
+transition: backdrop-filter 0.3s, background-color 0.3s;
+}
+
+/* STREAMING_CHUNK:Aplicando el diseño Glassmorphism a componentes base... /
+/ Efecto principal Glassmorphism */
+.glass-panel {
+background: rgba(255, 255, 255, 0.05);
+backdrop-filter: blur(15px);
+-webkit-backdrop-filter: blur(15px);
+border: 1px solid rgba(255, 255, 255, 0.1);
+border-radius: 20px;
+box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+color: #fff;
+}
+
+.glass-navbar {
+background: rgba(0, 0, 0, 0.3);
+backdrop-filter: blur(10px);
+border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-navbar .navbar-brand,
+.glass-navbar .nav-link,
+.glass-navbar i { color: #ffffff !important; }
+.glass-navbar .nav-link:hover { color: #0dcaf0 !important; }
+
+/* STREAMING_CHUNK:Estilizando inputs, botones y alertas de validación... /
+/ Controles de Formulario */
+.glass-input { background: rgba(255, 255, 255, 0.1) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; color: white !important; }
+.glass-input:focus { background: rgba(255, 255, 255, 0.15) !important; box-shadow: 0 0 10px rgba(0, 200, 255, 0.5) !important; }
+.glass-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+
+/* Botones */
+.glass-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; transition: all 0.3s;}
+.glass-btn:hover { background: rgba(255, 255, 255, 0.2); color: white; transform: translateY(-2px);}
+.glass-btn-primary { background: rgba(13, 110, 253, 0.3); border: 1px solid rgba(13, 110, 253, 0.5); backdrop-filter: blur(5px); color: white;}
+.glass-btn-primary:hover { background: rgba(13, 110, 253, 0.5); color: white;}
+
+/* Modales */
+.glass-modal { background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+
+.floating-back-btn { display: none !important; }
+
+.is-invalid { border-color: #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.5) !important; }
+.is-valid { border-color: #198754 !important; box-shadow: 0 0 5px rgba(25, 135, 84, 0.5) !important; }
+.invalid-feedback { color: #ff6b6b; font-size: 0.85em; display: none; margin-top: 5px;}
+.is-invalid ~ .invalid-feedback { display: block; }
+
+/* STREAMING_CHUNK:Estructurando el Chat inmersivo a pantalla completa... /
+/ =========================================
+DISEÑO DEL CHAT PANTALLA COMPLETA
+========================================= /
+.chat-fullscreen-wrapper {
+position: fixed;
+top: 60px; / Empieza justo debajo del navbar /
+left: 0;
+right: 0;
+bottom: 0; / Anclado al fondo */
+display: flex;
+flex-direction: column;
+z-index: 100;
+}
+
+.chat-scroll-area {
+flex-grow: 1; /* Toma todo el espacio intermedio */
+overflow-y: auto;
+overflow-x: hidden;
+padding: 20px;
+}
+
+/* Scrollbars estéticas y funcionales */
+.chat-scroll-area::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 6px; }
+.chat-scroll-area::-webkit-scrollbar-track, .modal-body::-webkit-scrollbar-track { background: transparent; }
+.chat-scroll-area::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: rgba(13, 202, 240, 0.4); border-radius: 10px; }
+.chat-scroll-area::-webkit-scrollbar-thumb:hover, .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(13, 202, 240, 0.8); }
+
+/* STREAMING_CHUNK:Diseñando las burbujas de los mensajes y los controles visuales... /
+/ Burbujas de mensajes */
+.msg-bubble {
+position: relative;
+padding: 10px 15px;
+border-radius: 15px;
+backdrop-filter: blur(8px);
+word-wrap: break-word;
+box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.msg-bubble img, .msg-bubble video {
+max-width: 100%;
+height: auto;
+border-radius: 8px;
+}
+
+/* Sliders de Ajuste Visual */
+.glass-range { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.1); outline: none; }
+.glass-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0dcaf0; cursor: pointer; box-shadow: 0 0 10px #0dcaf0; }

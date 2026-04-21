@@ -1,0 +1,82 @@
+<!-- Nombre del archivo: templates/registro.html -->
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4" style="background: rgba(255,255,255,0.8); backdrop-filter: blur(5px);">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-person-plus-fill dynamic-text fs-1"></i>
+                        <h3 class="fw-bold mt-2 text-dark">Crear Cuenta</h3>
+                        <p class="text-muted">Completa tus datos para obtener tu llave de acceso segura.</p>
+                    </div>
+                    
+                    <form id="formRegistro">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label text-muted fw-medium">Nombre</label>
+                                <input type="text" id="nombre" name="nombre" class="form-control bg-light" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted fw-medium">Primer Apellido</label>
+                                <input type="text" id="primer_apellido" name="primer_apellido" class="form-control bg-light" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-muted fw-medium">Segundo Apellido</label>
+                                <input type="text" id="segundo_apellido" name="segundo_apellido" class="form-control bg-light" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted fw-medium">Teléfono</label>
+                                <input type="text" id="telefono" name="telefono" class="form-control bg-light" maxlength="8" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted fw-medium">Correo Electrónico</label>
+                                <input type="email" id="email" name="email" class="form-control bg-light" required>
+                            </div>
+                        </div>
+
+                        <div class="p-3 mb-4 bg-light rounded-4 border">
+                            <label class="form-label fw-bold text-dark"><i class="bi bi-info-circle me-1 dynamic-text"></i> Información adicional (Opcional)</label>
+                            <select id="tipo_opcion_extra" class="form-select border-secondary-subtle mb-2">
+                                <option value="">Selecciona un tipo de perfil...</option>
+                                <option value="Empresa">Empresa</option>
+                                <option value="Proveedor">Proveedor</option>
+                                <option value="Institucion">Institución</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                            <div id="dynamic-fields-container"></div>
+                        </div>
+
+                        <div class="row g-3 mb-5">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted fw-medium">Contraseña</label>
+                                <div class="input-group">
+                                    <input type="password" id="password" name="password" class="form-control bg-light" required>
+                                    <button class="btn btn-light border toggle-password" type="button" data-target="password"><i class="bi bi-eye"></i></button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted fw-medium">Verificar Contraseña</label>
+                                <div class="input-group">
+                                    <input type="password" id="password_verify" class="form-control bg-light" required>
+                                    <button class="btn btn-light border toggle-password" type="button" data-target="password_verify"><i class="bi bi-eye"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-lg w-100 mb-3 shadow-sm fw-bold rounded-pill" style="background-color: #198754; border-color: #198754;">
+                                <i class="bi bi-shield-check me-2"></i> Registrarse y Descargar Llave
+                            </button>
+                            <a href="{{ url_for('tienda.login') }}" class="text-decoration-none text-muted fw-medium">¿Ya tienes cuenta? <span class="dynamic-text">Inicia sesión</span></a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

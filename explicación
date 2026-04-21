@@ -1,0 +1,82 @@
+Crear con flask, bootstrap, Glassmorphic, sqlite
+todas las validaciones absolutamente todas van a ir a validation.js
+usar en 
+
+SUMAMENTE IMPORTANTE
+Agrega el nombre literal comentado  arriba de cada archivo
+
+app.py los blueprints y autogenera la base de datos
+model.py para los modelos
+db.py para tener absolutamente toda la configuración de la base de datos
+routes.py para tener las rutas
+migrations.py para llevar las migraciones
+
+Estructura
+Templates y statics
+index.html
+
+framework solo bootstrap
+
+
+Necesito crear una tienda virtual
+Una sección de tienda.
+Una seccion de administración
+
+Sección de Tienda
+Estructura de las vistas HTML
+	base es la vista principal
+	inico
+	tienda
+
+	login.html
+
+	registro.html
+	Todas las validaciones van en validation.js
+	
+	-Nombre (Primera letra en mayúscula y solo un espacio entre el Primer Nombre y segundo Nombre. NO ACEPTA JAMÁS NÚMEROS, NI CARACTERES ESPECIALES )
+	
+	-Primer Apellido (Primera letra en mayúscula y  NO ACEPTA JAMÁS NÚMEROS, NI CARACTERES ESPECIALES )
+	
+	-Segundo Apellido (Primera letra en mayúscula y solo un espacio entre el Primer Nombre y segundo Nombre. NO ACEPTA JAMÁS NÚMEROS, NI CARACTERES ESPECIALES )
+
+	-Teléfono (Solo Npumero y no más de 8 ni menos de 8 dígitos) 
+	
+	-Email (Obliga el lowercase) 
+	
+	-un botón de Más opciones que permite ir agregando campos predefinidos y el espacio para colocar los datos
+	Empresa, Otro Teléfono,  Proveedor, Institución, Escuela, Transporte, mensajería, Correo, Otro:
+		
+		-Si Empresa (Muestra los campos: Nombre Empresa, Teléfono, Email)
+
+		-Si Proveedor (Muestra los campos: Nombre Proveedor, Teléfono,  Email)
+
+		-Si Instiución (Muestra los campos: Nombre Institución, Teléfono Institución,  Email de La Institución)
+
+		-Si Mensajería select(Correo de Costa Rica, inDrive, Uber,  DiDi, Ridery) Teléfono de Platamoforma)
+
+		-Si Otro ( Colocar input Detalle)
+
+	Contraseña (Ojo para ver contraseña)
+	Verificación Contraseña (Ojo para ver contraseña)
+	Autofecha de registro
+
+
+	Apenas creado el registro genera y descarga en json una llave totalmente encriptada con bcript 
+	Ya tengo una cuenta
+
+Login
+Email
+Contraseña
+
+recordar 
+Ya tengo una cuenta
+Crear una nueva cuenta
+Olvidé mi Usuario Abrir con la llave
+Al tocar Olvidé Contraseña Abre un modal donde se puede arrastrar la llave o un boton para buscar la llave que contiene toda la información del registro y todo tiene que coincidir, apenas ingresada Este JSON debe estar totalmente Encriptada para que nadie vea la información
+
+
+vas a darme 1 a uno cada vez que diga ok
+Vamos a crear esta primer sección
+
+
+
