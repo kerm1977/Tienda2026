@@ -11,6 +11,7 @@ socketio = SocketIO()
 
 # Diccionario para rastrear usuarios conectados: {user_id: sid}
 usuarios_conectados = {}
+usuarios_lobby = {} # NUEVO: Rastrear quién está en la sala virtual
 
 def create_app():
     app = Flask(__name__)
@@ -65,6 +66,11 @@ def handle_disconnect():
             del usuarios_conectados[uid]
             emit('estado_usuarios', {'user_id': uid, 'status': 'offline'}, broadcast=True)
             break
+            
+    # NUEVO: Remover al usuario de la sala virtual si cierra la página
+    if request.sid in usuarios_lobby:
+        user_data = usuarios_lobby.pop(request.sid)
+        emit('participante_salio_lobby', {'user_id': user_data['user_id'], 'nombre': user_data['nombre']}, room='LobbyGlobal')
 
 @socketio.on('enviar_mensaje')
 def handle_mensaje(data):
@@ -140,6 +146,31 @@ def handle_borrar(data):
                 msg.oculto_para_usuarios.append(usuario)
                 db.session.commit()
             emit('mensaje_oculto', {'id': msg_id}, room=f"user_{user_id}")
+
+# =======================================================
+# --- EVENTOS DEL LOBBY DE VIDEOLLAMADAS ---
+# =======================================================
+
+@socketio.on('unirse_lobby')
+def handle_unirse_lobby(data):
+    user_id = str(session.get('user_id'))
+    nombre = data.get('nombre')
+    if user_id:
+        join_room('LobbyGlobal')
+        
+        # 1. Registramos al usuario en la lista de la sala
+        usuarios_lobby[request.sid] = {'user_id': user_id, 'nombre': nombre}
+        
+        # 2. Le enviamos a ESTE usuario la lista de todos los que ya estaban adentro
+        emit('lista_participantes_lobby', list(usuarios_lobby.values()), room=request.sid)
+        
+        # 3. Le avisamos a TODOS LOS DEMÁS que acaba de llegar alguien nuevo
+        emit('nuevo_participante_lobby', {'user_id': user_id, 'nombre': nombre}, room='LobbyGlobal', include_self=False)
+
+@socketio.on('transmitir_mp4')
+def handle_transmitir_mp4(data):
+    # Cuando un profesor sube un MP4, retransmite la URL a toda la sala 'LobbyGlobal'
+    emit('recibir_mp4', data, room='LobbyGlobal', include_self=False)
 
 if __name__ == '__main__':
     app = create_app()

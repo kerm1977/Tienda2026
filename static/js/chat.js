@@ -1,5 +1,4 @@
 // Nombre del archivo: static/js/chat.js
-
 document.addEventListener('DOMContentLoaded', async function() {
     const socket = io();
     const myId = document.getElementById('current_user_id').value;
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const chatInput = document.getElementById('chat-input');
     const form = document.getElementById('chat-form');
     
-    // Listas separadas para Desktop y Mobile
     const usersListDesktop = document.getElementById('users-list-desktop');
     const usersListMobile = document.getElementById('users-list-mobile');
     
@@ -58,14 +56,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     if(searchMobile) searchMobile.addEventListener('input', (e) => renderizarListaUsuarios(e.target.value.toLowerCase()));
 
     function renderizarListaUsuarios(filtro = '') {
+        // ==========================================
+        // AQUÍ ESTÁ EL BOTÓN DE LA SALA VIRTUAL
+        // ==========================================
         let html = `
+            <a href="/lobby" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-bottom text-decoration-none bg-transparent" style="cursor: pointer;">
+                <div class="bg-danger text-white rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style="width: 45px; height: 45px;">
+                    <i class="bi bi-camera-video-fill fs-5"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold text-dark">Sala Virtual (Cursos)</h6>
+                    <small class="text-danger fw-bold"><i class="bi bi-record-circle me-1"></i>Ingresar al Lobby</small>
+                </div>
+            </a>
+
             <button class="list-group-item list-group-item-action d-flex align-items-center p-3 border-bottom bg-transparent" onclick="seleccionarChat('global', 'Chat Global')">
-                <div class="dynamic-nav rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 45px; height: 45px;">
+                <div class="dynamic-nav rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style="width: 45px; height: 45px;">
                     <i class="bi bi-globe fs-5" style="color: var(--text-on-accent)"></i>
                 </div>
                 <div>
                     <h6 class="mb-0 fw-bold text-dark">Chat Global</h6>
-                    <small class="text-muted">Sala pública</small>
+                    <small class="text-muted">Sala pública de texto</small>
                 </div>
             </button>
         `;
@@ -77,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             html += `
                 <button class="list-group-item list-group-item-action d-flex align-items-center p-3 border-bottom bg-transparent" onclick="seleccionarChat(${u.id}, '${u.nombre} ${u.apellidos}')">
-                    <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex justify-content-center align-items-center fw-bold fs-5 me-3 shadow-sm border border-white" style="width: 45px; height: 45px;">
+                    <div class="dynamic-nav rounded-circle d-flex justify-content-center align-items-center fw-bold fs-5 me-3 shadow-sm" style="width: 45px; height: 45px; color: var(--text-on-accent);">
                         ${u.nombre.charAt(0)}
                     </div>
                     <div class="flex-grow-1 overflow-hidden">
@@ -99,7 +110,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.seleccionarChat = async function(dest_id, dest_name) {
         currentChatId = dest_id;
         
-        // Cerrar el Modal en móviles
         const modalEl = document.getElementById('contactosModal');
         if(modalEl) {
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -141,9 +151,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         const nameLabel = isMe ? 'Tú' : msg.remitente_nombre;
         
         const alignClass = isMe ? 'justify-content-end' : 'justify-content-start';
-        // AQUÍ ES DONDE SUCEDE LA MAGIA DINÁMICA DE LA BURBUJA GLASSMORPHIC
-        const bubbleColor = isMe ? 'dynamic-bubble-mine' : 'bg-white text-dark border shadow-sm';
-        const timeColor = isMe ? 'opacity-75' : 'text-muted';
+        const bubbleClass = isMe ? 'dynamic-bubble-mine' : 'bg-white text-dark border shadow-sm';
+        const timeColor = isMe ? 'text-white-50' : 'text-muted';
         
         const msgDiv = document.createElement('div');
         msgDiv.className = `d-flex w-100 mb-3 ${alignClass}`;
@@ -151,20 +160,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         let contenidoHTML = msg.borrado ? `<span class="fst-italic opacity-75"><i class="bi bi-slash-circle me-1"></i> Este mensaje fue eliminado.</span>` : msg.texto;
 
-        // Renderizado de adjuntos
         if (msg.archivo_url && !msg.borrado) {
             const tipo = msg.tipo_archivo || '';
             if (tipo.startsWith('image/')) {
-                contenidoHTML += `<div class="mt-2"><img src="${msg.archivo_url}" class="img-fluid rounded" style="max-height: 200px;"></div>`;
+                contenidoHTML += `<div class="mt-2"><img src="${msg.archivo_url}" class="img-fluid rounded shadow-sm" style="max-height: 200px;"></div>`;
             } else if (tipo.startsWith('video/')) {
-                contenidoHTML += `<div class="mt-2"><video src="${msg.archivo_url}" controls class="w-100 rounded" style="max-height: 250px;"></video></div>`;
+                contenidoHTML += `<div class="mt-2"><video src="${msg.archivo_url}" controls class="w-100 rounded shadow-sm" style="max-height: 250px;"></video></div>`;
             } else if (tipo.startsWith('audio/')) {
                 contenidoHTML += `<div class="mt-2"><audio src="${msg.archivo_url}" controls class="w-100" style="height: 40px;"></audio></div>`;
             } else {
                 const btnClass = isMe ? 'btn-light dynamic-text' : 'dynamic-btn';
                 contenidoHTML += `
                     <div class="mt-2">
-                        <a href="${msg.archivo_url}" download class="btn btn-sm ${btnClass} d-inline-flex align-items-center">
+                        <a href="${msg.archivo_url}" download class="btn btn-sm ${btnClass} d-inline-flex align-items-center shadow-sm">
                             <i class="bi bi-download me-2"></i> Descargar Archivo
                         </a>
                     </div>`;
@@ -174,20 +182,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         let checksHTML = '';
         if (isMe && currentChatId !== 'global') {
             checksHTML = `<span class="ms-1" id="check-${msg.id}">
-                ${msg.leido ? '<i class="bi bi-check-all" style="color: var(--text-on-accent)"></i>' : '<i class="bi bi-check opacity-50"></i>'}
+                ${msg.leido ? '<i class="bi bi-check-all text-white"></i>' : '<i class="bi bi-check text-white-50"></i>'}
             </span>`;
         }
 
         let btnBorrar = '';
         if (!msg.borrado) {
-            const trashColor = isMe ? 'opacity-50' : 'text-danger opacity-75';
+            const trashColor = isMe ? 'text-white-50' : 'text-danger opacity-75';
             btnBorrar = `<button class="btn btn-sm p-0 ms-2 border-0 bg-transparent ${trashColor}" onclick="borrarMensaje(${msg.id}, ${isMe})" title="Eliminar"><i class="bi bi-trash3-fill"></i></button>`;
         }
 
         msgDiv.innerHTML = `
             <div style="max-width: 75%;">
                 <div class="small mb-1 px-1 ${isMe ? 'text-end text-muted' : 'text-muted'}">${nameLabel}</div>
-                <div class="p-3 rounded-4 ${bubbleColor}" style="${isMe ? 'border-bottom-right-radius: 4px !important;' : 'border-bottom-left-radius: 4px !important;'}">
+                <div class="p-3 rounded-4 ${bubbleClass}" style="${isMe ? 'border-bottom-right-radius: 4px !important;' : 'border-bottom-left-radius: 4px !important;'}">
                     <div id="text-${msg.id}">${contenidoHTML}</div>
                     <div class="d-flex justify-content-end align-items-center mt-2 small ${timeColor}">
                         <span>${msg.fecha_envio}</span>
@@ -206,7 +214,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         e.preventDefault();
         
         if(!currentChatId) {
-            window.showNotification("Selecciona un contacto en el panel lateral para escribir.", "info");
+            if(typeof window.showNotification === 'function') {
+                window.showNotification("Selecciona un contacto en el panel lateral para escribir.", "info");
+            }
             return;
         }
 
@@ -226,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 archivoUrl = data.url; tipoArchivo = data.tipo; nombreArchivo = data.nombre;
             } catch (err) {
                 console.error(err); 
-                window.showNotification("Error al subir el archivo.", "error"); 
+                if(typeof window.showNotification === 'function') window.showNotification("Error al subir el archivo.", "error"); 
                 uploadStatus.style.display = 'none';
                 chatInput.disabled = false; document.getElementById('btn-enviar').disabled = false;
                 return;
@@ -281,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     socket.on('mensaje_actualizado', (data) => {
         if(data.leido) {
             const check = document.getElementById(`check-${data.id}`);
-            if(check) check.innerHTML = '<i class="bi bi-check-all" style="color: var(--text-on-accent)"></i>';
+            if(check) check.innerHTML = '<i class="bi bi-check-all text-white"></i>';
         }
     });
 

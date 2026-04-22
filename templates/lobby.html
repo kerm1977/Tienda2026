@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* Estilos nativos integrados para la cuadrícula de videos */
+    .video-participant {
+        width: 160px;
+        height: 120px;
+        background-color: #212529;
+        border-radius: 0.5rem;
+        object-fit: cover;
+        border: 2px solid var(--accent-strong);
+        transition: transform 0.2s;
+    }
+    .video-participant:hover {
+        transform: scale(1.05);
+    }
+    .main-stage-video {
+        width: 100%;
+        height: 100%;
+        max-height: 60vh;
+        object-fit: contain;
+        background-color: #000;
+        border-radius: 0.5rem;
+    }
+    .participant-container {
+        position: relative;
+        display: inline-block;
+    }
+    .participant-name {
+        position: absolute;
+        bottom: 5px;
+        left: 5px;
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border">
+        <div>
+            <h4 class="mb-0 fw-bold text-dark"><i class="bi bi-camera-video-fill dynamic-text me-2"></i> Sala de Cursos</h4>
+            <small class="text-muted">ID de Sesión: Sala-Global</small>
+        </div>
+        <div>
+            <span class="badge bg-danger rounded-pill px-3 py-2 animate__animated animate__pulse animate__infinite shadow-sm">
+                <i class="bi bi-record-circle me-1"></i> En Vivo
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- ÁREA PRINCIPAL (Main Stage) -->
+        <div class="col-lg-9">
+            <div class="bg-dark rounded-4 shadow-sm position-relative d-flex justify-content-center align-items-center" style="height: 60vh; border: 1px solid #dee2e6;">
+                
+                <div id="main-stage-container" class="w-100 h-100 p-2 d-flex justify-content-center align-items-center">
+                    <div class="text-center text-secondary">
+                        <i class="bi bi-easel-fill display-1 mb-3 opacity-50"></i>
+                        <h5>El escenario está vacío</h5>
+                        <p class="small">Enciende tu cámara o sube un video para comenzar la clase.</p>
+                    </div>
+                </div>
+
+                <div class="position-absolute bottom-0 start-50 translate-middle-x w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
+                    <div class="d-flex justify-content-center gap-3">
+                        <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Silenciar">
+                            <i class="bi bi-mic-fill fs-5"></i>
+                        </button>
+                        <button id="btn-cam" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Cámara">
+                            <i class="bi bi-camera-video-fill fs-5"></i>
+                        </button>
+                        
+                        <div class="position-relative">
+                            <input type="file" id="file-mp4" accept="video/mp4" class="d-none">
+                            <button id="btn-upload-mp4" class="btn dynamic-btn rounded-pill shadow px-4 fw-bold" title="Transmitir Video Grabado">
+                                <i class="bi bi-play-btn-fill me-2"></i> Subir MP4
+                            </button>
+                        </div>
+                        
+                        <a href="{{ url_for('tienda.chat') }}" class="btn btn-danger rounded-circle shadow" style="width: 50px; height: 50px;" title="Salir de la reunión">
+                            <i class="bi bi-telephone-x-fill fs-5"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div id="upload-progress" class="alert dynamic-nav text-white mt-3 d-none shadow-sm border-0">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <strong style="color: var(--text-on-accent);">Subiendo y sincronizando video con los estudiantes...</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="bg-white rounded-4 shadow-sm border p-3 h-100 d-flex flex-column">
+                <h6 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-people-fill dynamic-text"></i> Participantes</h6>
+                
+                <div id="participants-grid" class="d-flex flex-wrap gap-2 overflow-auto align-items-start justify-content-center flex-grow-1 pb-2">
+                    <!-- Mi propia cámara -->
+                    <div class="participant-container">
+                        <video id="local-video" class="video-participant" autoplay muted playsinline></video>
+                        <span class="participant-name">Yo</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const socket = io();
+    const myId = "{{ session.get('user_id') }}";
+    const myName = "{{ session.get('user_nombre') }}";
+
+    const localVideo = document.getElementById('local-video');
+    const mainStage = document.getElementById('main-stage-container');
+    const btnMic = document.getElementById('btn-mic');
+    const btnCam = document.getElementById('btn-cam');
+    const btnUploadMp4 = document.getElementById('btn-upload-mp4');
+    const fileMp4 = document.getElementById('file-mp4');
+    const uploadProgress = document.getElementById('upload-progress');
+
+    let localStream = null;
+    let isMicOn = true;
+    let isCamOn = true;
+
+    socket.on('connect', () => {
+        socket.emit('unirse_lobby', { user_id: myId, nombre: myName });
+    });
+
+    // ==========================================
+    // NUEVO: PRESENCIA Y CAJITAS DE MÁS OPCIONES
+    // ==========================================
+    
+    socket.on('lista_participantes_lobby', (lista) => {
+        // Limpiamos las cajitas viejas (excepto nuestra cámara)
+        document.querySelectorAll('.remote-participant').forEach(el => el.remove());
+        
+        // Creamos las cajitas de los que ya estaban en la sala
+        lista.forEach(participante => {
+            if (participante.user_id !== myId) {
+                agregarCajitaParticipante(participante);
+            }
+        });
+    });
+
+    socket.on('nuevo_participante_lobby', (participante) => {
+        // Cuando alguien nuevo entra, creamos su cajita y mostramos notificación
+        if (participante.user_id !== myId) {
+            agregarCajitaParticipante(participante);
+            if(typeof window.showNotification === 'function') {
+                window.showNotification(`${participante.nombre} se unió a la clase.`, "info");
+            }
+        }
+    });
+
+    socket.on('participante_salio_lobby', (participante) => {
+        // Cuando alguien se va, borramos su cajita
+        const cajita = document.getElementById(`part-${participante.user_id}`);
+        if (cajita) {
+            cajita.remove();
+            if(typeof window.showNotification === 'function') {
+                window.showNotification(`${participante.nombre} salió de la sala.`, "error");
+            }
+        }
+    });
+
+    // Función que dibuja la cajita con el menú desplegable
+    function agregarCajitaParticipante(p) {
+        if (document.getElementById(`part-${p.user_id}`)) return; // Evitar repetidos
+        
+        const grid = document.getElementById('participants-grid');
+        const div = document.createElement('div');
+        div.className = 'participant-container remote-participant mb-2';
+        div.id = `part-${p.user_id}`;
+        
+        div.innerHTML = `
+            <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8); border: 2px solid var(--accent-strong);">
+                
+                <!-- Menú de "Más Opciones" -->
+                <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
+                    <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Más opciones">
+                        <i class="bi bi-three-dots-vertical fs-5"></i>
+                    </button>
+                    <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-mic-mute text-danger me-2"></i> Silenciar micro</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-camera-video-off text-danger me-2"></i> Apagar cámara</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger fw-bold" href="#"><i class="bi bi-person-x me-2"></i> Expulsar</a></li>
+                    </ul>
+                </div>
+
+                <!-- Avatar con la Inicial -->
+                <div class="rounded-circle d-flex justify-content-center align-items-center mb-1 text-white fw-bold fs-3 shadow-sm" style="width: 50px; height: 50px; background: var(--accent-strong);">
+                    ${p.nombre.charAt(0).toUpperCase()}
+                </div>
+                <small class="text-white opacity-75"><i class="bi bi-mic-mute-fill text-danger"></i></small>
+            </div>
+            <span class="participant-name shadow-sm">${p.nombre}</span>
+        `;
+        
+        grid.appendChild(div);
+    }
+
+    async function startMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+            setMainStage(localVideo.srcObject);
+        } catch (error) {
+            console.error("Cámara no detectada:", error);
+            if(typeof window.showNotification === 'function') window.showNotification("No se detectó cámara o micrófono.", "error");
+        }
+    }
+    startMedia();
+
+    btnMic.addEventListener('click', () => {
+        if (!localStream) return;
+        isMicOn = !isMicOn;
+        localStream.getAudioTracks()[0].enabled = isMicOn;
+        btnMic.innerHTML = isMicOn ? '<i class="bi bi-mic-fill fs-5"></i>' : '<i class="bi bi-mic-mute-fill fs-5 text-danger"></i>';
+    });
+
+    btnCam.addEventListener('click', () => {
+        if (!localStream) return;
+        isCamOn = !isCamOn;
+        localStream.getVideoTracks()[0].enabled = isCamOn;
+        btnCam.innerHTML = isCamOn ? '<i class="bi bi-camera-video-fill fs-5"></i>' : '<i class="bi bi-camera-video-off-fill fs-5 text-danger"></i>';
+    });
+
+    btnUploadMp4.addEventListener('click', () => fileMp4.click());
+
+    fileMp4.addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        uploadProgress.classList.remove('d-none');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/upload_file', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (res.ok && data.url) {
+                socket.emit('transmitir_mp4', { url: data.url, emisor: myName });
+                reproducirMp4(data.url); 
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (err) {
+            if(typeof window.showNotification === 'function') window.showNotification("Error: " + err.message, "error");
+        } finally {
+            uploadProgress.classList.add('d-none');
+            fileMp4.value = ''; 
+        }
+    });
+
+    socket.on('recibir_mp4', (data) => {
+        if(typeof window.showNotification === 'function') window.showNotification(`${data.emisor} está presentando un video.`, "info");
+        reproducirMp4(data.url);
+    });
+
+    function reproducirMp4(url) {
+        mainStage.innerHTML = '';
+        const videoEl = document.createElement('video');
+        videoEl.src = url;
+        videoEl.controls = true;
+        videoEl.autoplay = true;
+        videoEl.className = 'main-stage-video shadow';
+        mainStage.appendChild(videoEl);
+    }
+
+    function setMainStage(stream) {
+        mainStage.innerHTML = '';
+        const videoEl = document.createElement('video');
+        videoEl.srcObject = stream;
+        videoEl.autoplay = true;
+        videoEl.muted = true; 
+        videoEl.className = 'main-stage-video shadow';
+        mainStage.appendChild(videoEl);
+    }
+});
+</script>
+{% endblock %}

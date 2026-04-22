@@ -225,3 +225,11 @@ def dashboard():
 def lista_usuarios():
     usuarios = Usuario.query.all()
     return render_template('admin/usuarios.html', usuarios=usuarios)
+
+# ESTA ES LA RUTA DE LA SALA VIRTUAL (Aquí sí debe ir)
+@tienda_bp.route('/lobby')
+def lobby():
+    if not session.get('user_id'):
+        flash("Debes iniciar sesión para entrar a la sala.", "error")
+        return redirect(url_for('tienda.login'))
+    return render_template('lobby.html')

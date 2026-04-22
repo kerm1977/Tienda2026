@@ -102,5 +102,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
-<script src="{{ url_for('static', filename='js/chat.js') }}?v=11.0"></script>
+<!-- ESTA ES LA LÍNEA MÁGICA ANTI-CACHÉ -->
+<script src="{{ url_for('static', filename='js/chat.js') }}?v={{ range(1, 999999) | random }}"></script>
 {% endblock %}

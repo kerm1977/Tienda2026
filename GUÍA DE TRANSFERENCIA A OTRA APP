@@ -1,0 +1,52 @@
+Guía: Cómo mover el Chat a otra App Flask
+El chat depende de 5 componentes principales. Para llevarlo a otra app, debes asegurarte de copiar y conectar estas partes:
+
+1. Instalar Dependencias
+    En el entorno virtual de tu nueva app, asegúrate de tener instaladas las librerías necesarias para los WebSockets:
+    pip install flask-socketio flask-sqlalchemy werkzeug
+
+
+2. Migrar la Base de Datos (Modelos)
+    Copia la estructura de la base de datos de tu archivo model.py al de la nueva app. Necesitas específicamente:
+    La tabla intermedia mensajes_ocultos.
+    El modelo Mensaje.
+    Importante: Tu nueva app probablemente ya tenga un modelo Usuario (o User). Debes asegurarte de agregarle la relación oculto_para_usuarios que está al final del modelo de la app original.
+
+
+3. Configurar Socket.IO (app.py)
+    En l archivo principal donde inicializas Flask, debes envolver tu app con SocketIO:
+    from flask_socketio import SocketIO
+    socketio = SocketIO()
+
+    def create_app():
+        app = Flask(__name__)
+        # ... configuraciones ...
+        socketio.init_app(app, cors_allowed_origins="*", manage_session=False)
+        return app
+
+    if __name__ == '__main__':
+        app = create_app()
+        socketio.run(app, debug=True) # IMPORTANTE: Cambiar app.run() por socketio.run()
+
+
+4. Los Eventos de Socket y APIs (Backend)
+    Debes copiar dos cosas de tu backend al de la nueva app (puedes ponerlos en tus rutas principales o crear un Blueprint llamado chat_bp):
+    Rutas de API:
+    /api/usuarios_chat (Para listar contactos).
+    /api/mensajes/<destinatario> (Para cargar el historial).
+    /api/upload_file (Junto con la configuración de UPLOAD_FOLDER para enviar imágenes/archivos).
+    Eventos Socket.IO: Copia todo el bloque que tienes en app.py debajo de # --- EVENTOS DE SOCKET.IO --- (conectar_usuario, enviar_mensaje, marcar_leido, borrar_mensaje, etc.) y el diccionario usuarios_conectados = {}.
+
+
+5. El Frontend (HTML y JS)
+    Copia exactamente estos dos archivos a tu nuevo proyecto:
+    templates/chat.html
+    static/js/chat.js
+    Aviso de CSS/Bootstrap: Tu HTML actual usa clases de Bootstrap 5. Asegúrate de que la nueva app tenga Bootstrap enlazado en su plantilla base (base.html).
+
+
+6. Sincronización de la Sesión (CRÍTICO) ⚠️
+    El chat funciona leyendo quién está conectado usando la sesión de Flask. En la línea superior de chat.html verás esto:
+    <input type="hidden" id="current_user_id" value="{{ session.get('user_id') }}">
+
+    Para que el chat funcione en la nueva app, tu sistema de Login en la nueva app debe guardar el ID del usuario exactamente bajo la misma variable session['user_id'] y el nombre en session['user_nombre']. Si tu nueva app usa (por ejemplo) session['id_usuario'], deberás cambiarlo en chat.html y en las rutas de Python para que coincidan.
