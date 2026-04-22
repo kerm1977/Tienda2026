@@ -9,7 +9,7 @@ from sqlalchemy import text
 # Instancia global de SocketIO
 socketio = SocketIO()
 
-# Diccionarios globales para el entorno
+# Diccionario para rastrear usuarios conectados: {user_id: sid}
 usuarios_conectados = {}
 usuarios_lobby = {} 
 
@@ -17,7 +17,8 @@ usuarios_lobby = {}
 estado_lobby = {
     'cola_palabra': [],
     'materiales': [],
-    'fijado': None
+    'fijado': None,
+    'permiso_materiales': False # NUEVO: Control de permisos para subir archivos
 }
 
 def create_app():
@@ -73,7 +74,6 @@ def create_app():
 # =======================================================
 # --- EVENTOS DE SOCKET.IO PARA EL CHAT AVANZADO ---
 # =======================================================
-
 @socketio.on('conectar_usuario')
 def handle_conectar(data):
     # SOLUCIÓN DE SEGURIDAD: Confiar en la sesión del servidor, no en el cliente
@@ -96,12 +96,10 @@ def handle_disconnect():
             emit('estado_usuarios', {'user_id': uid, 'status': 'offline'}, broadcast=True)
             break
             
-    # NUEVO: Remover al usuario de la sala virtual si cierra la página
+    # Remover al usuario de la sala virtual si cierra la página
     if request.sid in usuarios_lobby:
         user_data = usuarios_lobby.pop(request.sid)
-        # Si tenía la mano levantada, la bajamos
         estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_data['user_id']]
-        
         emit('participante_salio_lobby', {'user_id': user_data['user_id'], 'nombre': user_data['nombre']}, room='LobbyGlobal')
         emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
 
@@ -180,9 +178,20 @@ def handle_borrar(data):
                 db.session.commit()
             emit('mensaje_oculto', {'id': msg_id}, room=f"user_{user_id}")
 
+
 # =======================================================
 # --- EVENTOS DEL LOBBY DE VIDEOLLAMADAS Y MATERIALES ---
 # =======================================================
+
+@socketio.on('webrtc_signal')
+def handle_webrtc_signal(data):
+    """
+    INTEGRACIÓN CRUCIAL WEBRTC:
+    Recibe ofertas, respuestas y candidatos ICE de un cliente y los retransmite 
+    a todos los demás. Permite que las conexiones de video se establezcan.
+    """
+    emit('webrtc_signal', data, broadcast=True, include_self=False)
+
 
 @socketio.on('unirse_lobby')
 def handle_unirse_lobby(data):
@@ -196,6 +205,10 @@ def handle_unirse_lobby(data):
         emit('lista_participantes_lobby', list(usuarios_lobby.values()), room=request.sid)
         emit('actualizar_cola', estado_lobby['cola_palabra'], room=request.sid)
         emit('actualizar_materiales', estado_lobby['materiales'], room=request.sid)
+        
+        # Enviar permiso inicial de subida de materiales
+        emit('estado_inicial_lobby', {'permiso_materiales': estado_lobby['permiso_materiales']}, room=request.sid)
+        
         if estado_lobby['fijado']:
             emit('actualizar_escenario', estado_lobby['fijado'], room=request.sid)
             
@@ -205,7 +218,6 @@ def handle_unirse_lobby(data):
 def handle_transmitir_mp4(data):
     emit('recibir_mp4', data, room='LobbyGlobal', include_self=False)
 
-# --- Controles Administrativos ---
 @socketio.on('cerrar_sala_global')
 def handle_cerrar_sala():
     if session.get('is_admin'):
@@ -224,8 +236,7 @@ def handle_accion_masiva(data):
 @socketio.on('admin_accion_individual')
 def handle_accion_individual(data):
     if session.get('is_admin'):
-        target_id = data.get('target_id')
-        emit('fuerza_accion', {'accion': data.get('accion')}, room='LobbyGlobal') # Emitimos al Lobby, el frontend filtra por target_id
+        emit('fuerza_accion', {'accion': data.get('accion')}, room=f"user_{data.get('target_id')}")
 
 # --- Petición de Turnos (Levantar Mano) ---
 @socketio.on('pedir_palabra')
@@ -238,7 +249,6 @@ def handle_pedir_palabra(data):
 
 @socketio.on('bajar_mano')
 def handle_bajar_mano(data):
-    # Puede bajarla el usuario o un admin
     user_id = str(data.get('user_id')) 
     estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_id]
     emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
@@ -251,12 +261,20 @@ def handle_fijar(data):
         emit('actualizar_escenario', data, room='LobbyGlobal')
 
 # --- Gestión de Materiales ---
+@socketio.on('toggle_permiso_materiales')
+def handle_toggle_materiales(data):
+    if session.get('is_admin'):
+        estado_lobby['permiso_materiales'] = data.get('permitir')
+        emit('actualizar_permiso_materiales', {'permitir': estado_lobby['permiso_materiales']}, room='LobbyGlobal')
+
 @socketio.on('compartir_material')
 def handle_material(data):
-    import uuid
-    data['id'] = str(uuid.uuid4())
-    estado_lobby['materiales'].append(data)
-    emit('actualizar_materiales', estado_lobby['materiales'], room='LobbyGlobal')
+    # Verificamos que el usuario tenga permiso para subir (sea admin o permiso activo)
+    if session.get('is_admin') or estado_lobby['permiso_materiales']:
+        import uuid
+        data['id'] = str(uuid.uuid4())
+        estado_lobby['materiales'].append(data)
+        emit('actualizar_materiales', estado_lobby['materiales'], room='LobbyGlobal')
 
 @socketio.on('borrar_material')
 def handle_borrar_material(data):
