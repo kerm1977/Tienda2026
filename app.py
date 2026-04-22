@@ -9,9 +9,16 @@ from sqlalchemy import text
 # Instancia global de SocketIO
 socketio = SocketIO()
 
-# Diccionario para rastrear usuarios conectados: {user_id: sid}
+# Diccionarios globales para el entorno
 usuarios_conectados = {}
-usuarios_lobby = {} # NUEVO: Rastrear quién está en la sala virtual
+usuarios_lobby = {} 
+
+# Estado temporal de la Sala Virtual
+estado_lobby = {
+    'cola_palabra': [],
+    'materiales': [],
+    'fijado': None
+}
 
 def create_app():
     app = Flask(__name__)
@@ -35,9 +42,31 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*", manage_session=False)
     
     with app.app_context():
-        # MEJORA: El "Parche Robusto" de SQL crudo fue eliminado. 
         # Ahora Flask-Migrate se encargará de los cambios de esquema limpiamente.
         db.create_all()
+
+        # ==========================================
+        # CREACIÓN AUTOMÁTICA DE SUPERUSUARIOS
+        # ==========================================
+        from werkzeug.security import generate_password_hash
+        from model import Usuario
+        
+        correos_admin = ['kenth1977@gmail.com', 'lthikingcr@gmail.com']
+        pwd_admin = generate_password_hash('CR129x7848n', method='pbkdf2:sha256')
+        
+        for correo in correos_admin:
+            if not Usuario.query.filter_by(email=correo).first():
+                admin = Usuario(
+                    nombre='Admin',
+                    primer_apellido='Sistema',
+                    segundo_apellido='',
+                    telefono='88888888',
+                    email=correo,
+                    password=pwd_admin,
+                    opciones_extra={'is_admin': True, 'tema': 'tema-default'}
+                )
+                db.session.add(admin)
+        db.session.commit()
 
     return app
 
@@ -70,7 +99,11 @@ def handle_disconnect():
     # NUEVO: Remover al usuario de la sala virtual si cierra la página
     if request.sid in usuarios_lobby:
         user_data = usuarios_lobby.pop(request.sid)
+        # Si tenía la mano levantada, la bajamos
+        estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_data['user_id']]
+        
         emit('participante_salio_lobby', {'user_id': user_data['user_id'], 'nombre': user_data['nombre']}, room='LobbyGlobal')
+        emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
 
 @socketio.on('enviar_mensaje')
 def handle_mensaje(data):
@@ -132,7 +165,7 @@ def handle_borrar(data):
     msg = Mensaje.query.get(msg_id)
     if msg:
         # Borrar para todos (solo el autor puede)
-        if tipo == 'todos' and msg.remitente_id == user_id:
+        if tipo == 'todos' and str(msg.remitente_id) == str(user_id):
             msg.borrado = True
             msg.texto = "🚫 Este mensaje fue eliminado."
             msg.archivo_url = None
@@ -148,7 +181,7 @@ def handle_borrar(data):
             emit('mensaje_oculto', {'id': msg_id}, room=f"user_{user_id}")
 
 # =======================================================
-# --- EVENTOS DEL LOBBY DE VIDEOLLAMADAS ---
+# --- EVENTOS DEL LOBBY DE VIDEOLLAMADAS Y MATERIALES ---
 # =======================================================
 
 @socketio.on('unirse_lobby')
@@ -157,20 +190,80 @@ def handle_unirse_lobby(data):
     nombre = data.get('nombre')
     if user_id:
         join_room('LobbyGlobal')
-        
-        # 1. Registramos al usuario en la lista de la sala
         usuarios_lobby[request.sid] = {'user_id': user_id, 'nombre': nombre}
         
-        # 2. Le enviamos a ESTE usuario la lista de todos los que ya estaban adentro
+        # Enviar el estado completo al recién llegado
         emit('lista_participantes_lobby', list(usuarios_lobby.values()), room=request.sid)
-        
-        # 3. Le avisamos a TODOS LOS DEMÁS que acaba de llegar alguien nuevo
+        emit('actualizar_cola', estado_lobby['cola_palabra'], room=request.sid)
+        emit('actualizar_materiales', estado_lobby['materiales'], room=request.sid)
+        if estado_lobby['fijado']:
+            emit('actualizar_escenario', estado_lobby['fijado'], room=request.sid)
+            
         emit('nuevo_participante_lobby', {'user_id': user_id, 'nombre': nombre}, room='LobbyGlobal', include_self=False)
 
 @socketio.on('transmitir_mp4')
 def handle_transmitir_mp4(data):
-    # Cuando un profesor sube un MP4, retransmite la URL a toda la sala 'LobbyGlobal'
     emit('recibir_mp4', data, room='LobbyGlobal', include_self=False)
+
+# --- Controles Administrativos ---
+@socketio.on('cerrar_sala_global')
+def handle_cerrar_sala():
+    if session.get('is_admin'):
+        emit('sala_cerrada', room='LobbyGlobal')
+
+@socketio.on('expulsar_usuario')
+def handle_expulsar(data):
+    if session.get('is_admin'):
+        emit('usuario_expulsado', {'user_id': data.get('user_id')}, room='LobbyGlobal')
+
+@socketio.on('admin_accion_masiva')
+def handle_accion_masiva(data):
+    if session.get('is_admin'):
+        emit('fuerza_accion', {'accion': data.get('accion')}, room='LobbyGlobal', include_self=False)
+
+@socketio.on('admin_accion_individual')
+def handle_accion_individual(data):
+    if session.get('is_admin'):
+        target_id = data.get('target_id')
+        emit('fuerza_accion', {'accion': data.get('accion')}, room='LobbyGlobal') # Emitimos al Lobby, el frontend filtra por target_id
+
+# --- Petición de Turnos (Levantar Mano) ---
+@socketio.on('pedir_palabra')
+def handle_pedir_palabra(data):
+    user_id = str(session.get('user_id'))
+    nombre = data.get('nombre')
+    if not any(u['user_id'] == user_id for u in estado_lobby['cola_palabra']):
+        estado_lobby['cola_palabra'].append({'user_id': user_id, 'nombre': nombre})
+    emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
+
+@socketio.on('bajar_mano')
+def handle_bajar_mano(data):
+    # Puede bajarla el usuario o un admin
+    user_id = str(data.get('user_id')) 
+    estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_id]
+    emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
+
+# --- Control de Escenario (PiP) ---
+@socketio.on('fijar_escenario')
+def handle_fijar(data):
+    if session.get('is_admin'):
+        estado_lobby['fijado'] = data
+        emit('actualizar_escenario', data, room='LobbyGlobal')
+
+# --- Gestión de Materiales ---
+@socketio.on('compartir_material')
+def handle_material(data):
+    import uuid
+    data['id'] = str(uuid.uuid4())
+    estado_lobby['materiales'].append(data)
+    emit('actualizar_materiales', estado_lobby['materiales'], room='LobbyGlobal')
+
+@socketio.on('borrar_material')
+def handle_borrar_material(data):
+    if session.get('is_admin'):
+        mat_id = data.get('id')
+        estado_lobby['materiales'] = [m for m in estado_lobby['materiales'] if m.get('id') != mat_id]
+        emit('actualizar_materiales', estado_lobby['materiales'], room='LobbyGlobal')
 
 if __name__ == '__main__':
     app = create_app()

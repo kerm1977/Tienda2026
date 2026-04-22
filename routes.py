@@ -3,16 +3,19 @@ from flask import Blueprint, render_template, request, jsonify, current_app, fla
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeSerializer
 from db import db
-from model import Usuario, Mensaje
+from model import Usuario, Mensaje, Invitacion
 import os
 from werkzeug.utils import secure_filename
 import uuid
+import random
+import string
 
 # Configuración de subida de archivos
 UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__name__)), 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'pdf', 'txt', 'docx', 'json', 'zip', 'svg'}
+# NUEVO: Se agregaron pptx, xls, html a los formatos permitidos para la Sala Virtual
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'pdf', 'txt', 'docx', 'json', 'zip', 'svg', 'pptx', 'xls', 'html'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -44,7 +47,8 @@ def chat():
 def api_usuarios_chat():
     try:
         usuarios = Usuario.query.all()
-        return jsonify([u.to_dict() for u in usuarios])
+        # Ocultamos a los invitados temporales de la lista de contactos globales
+        return jsonify([u.to_dict() for u in usuarios if not (u.opciones_extra and u.opciones_extra.get('is_guest'))])
     except Exception as e:
         print(f"Error en api_usuarios_chat: {e}")
         return jsonify({"error": str(e)}), 500
@@ -102,13 +106,93 @@ def upload_file():
         'nombre': filename
     })
 
-# --- NUEVO: API PARA GUARDAR EL TEMA DEL USUARIO ---
+# ========================================================
+# NUEVO: RUTAS DE SALA VIRTUAL Y LLAVES DE INVITACIÓN
+# ========================================================
+@tienda_bp.route('/api/generar_invitacion', methods=['POST'])
+def generar_invitacion():
+    if not session.get('is_admin'):
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    data = request.json
+    codigo = "SALA-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    
+    inv = Invitacion(
+        codigo=codigo,
+        fecha_actividad=data.get('fecha'),
+        hora_actividad=data.get('hora'),
+        capacidad=int(data.get('capacidad')),
+        creador_id=session.get('user_id')
+    )
+    db.session.add(inv)
+    db.session.commit()
+    
+    return jsonify({'status': 'success', 'codigo': codigo})
+
+@tienda_bp.route('/api/finalizar_invitacion', methods=['POST'])
+def finalizar_invitacion():
+    if not session.get('is_admin'):
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    codigo = request.json.get('codigo')
+    inv = Invitacion.query.filter_by(codigo=codigo).first()
+    if inv:
+        inv.activa = False
+        db.session.commit()
+    return jsonify({'status': 'success'})
+
+@tienda_bp.route('/api/login_invitado', methods=['POST'])
+def login_invitado():
+    data = request.json
+    codigo = data.get('codigo')
+    nombre = data.get('nombre')
+    
+    inv = Invitacion.query.filter_by(codigo=codigo).first()
+    if not inv or not inv.activa:
+        return jsonify({'status': 'error', 'mensaje': 'Esta llave es obsoleta o está mal digitada.'}), 400
+    
+    # Creamos un usuario temporal
+    nuevo_guest = Usuario(
+        nombre=nombre,
+        primer_apellido="(Invitado)",
+        segundo_apellido="",
+        telefono="00000000",
+        email=f"guest_{uuid.uuid4().hex[:8]}@guest.com", 
+        password=generate_password_hash("guest"),
+        opciones_extra={'is_guest': True, 'tema': 'tema-default'}
+    )
+    db.session.add(nuevo_guest)
+    db.session.commit()
+    
+    session['user_id'] = nuevo_guest.id
+    session['user_nombre'] = nuevo_guest.nombre
+    session['tema'] = 'tema-default'
+    return jsonify({'status': 'success', 'redirect': '/lobby'})
+
+@tienda_bp.route('/api/hacer_admin', methods=['POST'])
+def hacer_admin():
+    if not session.get('is_admin'):
+        return jsonify({'error': 'No autorizado'}), 403
+    user_id = request.json.get('user_id')
+    usr = Usuario.query.get(user_id)
+    if usr:
+        opc = usr.opciones_extra or {}
+        opc['is_admin'] = True
+        usr.opciones_extra = opc
+        db.session.merge(usr)
+        db.session.commit()
+        return jsonify({'status': 'success'})
+    return jsonify({'error': 'User not found'}), 404
+
+# ========================================================
+# RUTAS DE AUTENTICACIÓN Y TEMAS (EXISTENTES)
+# ========================================================
+
 @tienda_bp.route('/api/guardar_tema', methods=['POST'])
 def guardar_tema():
     tema = request.json.get('tema')
     mi_id = session.get('user_id')
-    
-    session['tema'] = tema # Guardamos en sesión inmediatamente (incluso si no está logueado)
+    session['tema'] = tema 
     
     if mi_id and tema:
         usuario = Usuario.query.get(mi_id)
@@ -195,6 +279,7 @@ def api_login_llave():
             session['user_id'] = usuario.id
             session['user_nombre'] = usuario.nombre
             session['tema'] = usuario.opciones_extra.get('tema', 'tema-default') if usuario.opciones_extra else 'tema-default'
+            session['is_admin'] = usuario.opciones_extra.get('is_admin', False) if usuario.opciones_extra else False
             return jsonify({"status": "success", "mensaje": "Login exitoso mediante llave", "redirect": "/chat"})
     except Exception:
         return jsonify({"status": "error", "mensaje": "Llave corrupta o no autorizada"}), 403
@@ -208,6 +293,7 @@ def api_login():
         session['user_id'] = usuario.id
         session['user_nombre'] = usuario.nombre
         session['tema'] = usuario.opciones_extra.get('tema', 'tema-default') if usuario.opciones_extra else 'tema-default'
+        session['is_admin'] = usuario.opciones_extra.get('is_admin', False) if usuario.opciones_extra else False
         return jsonify({"status": "success", "mensaje": f"Bienvenido, {usuario.nombre}.", "redirect": "/chat"})
     return jsonify({"status": "error", "mensaje": "Email o contraseña incorrectos."}), 401
 
@@ -226,7 +312,6 @@ def lista_usuarios():
     usuarios = Usuario.query.all()
     return render_template('admin/usuarios.html', usuarios=usuarios)
 
-# ESTA ES LA RUTA DE LA SALA VIRTUAL (Aquí sí debe ir)
 @tienda_bp.route('/lobby')
 def lobby():
     if not session.get('user_id'):

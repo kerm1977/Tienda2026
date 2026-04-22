@@ -15,14 +15,6 @@
     .video-participant:hover {
         transform: scale(1.05);
     }
-    .main-stage-video {
-        width: 100%;
-        height: 100%;
-        max-height: 60vh;
-        object-fit: contain;
-        background-color: #000;
-        border-radius: 0.5rem;
-    }
     .participant-container {
         position: relative;
         display: inline-block;
@@ -37,49 +29,129 @@
         padding: 2px 6px;
         border-radius: 4px;
     }
+
+    /* SISTEMA PIP Y VISTA DE PRESENTACIÓN */
+    .stage-wrapper { 
+        position: relative; 
+        width: 100%; 
+        height: 60vh; 
+        background: #111; 
+        border-radius: 1rem; 
+        overflow: hidden; 
+    }
+    .layer-media, .layer-speaker { 
+        position: absolute; 
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .main-stage-video { width: 100%; height: 100%; object-fit: contain; }
+    
+    /* Layout 1: Foco en Multimedia (Sujeto pequeño esquina) */
+    .layout-media-focus .layer-media { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; }
+    .layout-media-focus .layer-speaker { width: 25%; height: 25%; bottom: 20px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    
+    /* Layout 2: Foco en Sujeto (Multimedia pequeña esquina) */
+    .layout-speaker-focus .layer-speaker { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; border: none; border-radius: 0; }
+    .layout-speaker-focus .layer-media { width: 25%; height: 25%; bottom: 20px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    
+    /* Layout 3: Dividido 50/50 */
+    .layout-split .layer-media { width: 50%; height: 100%; top: 0; left: 0; z-index: 1; }
+    .layout-split .layer-speaker { width: 50%; height: 100%; top: 0; left: 50%; z-index: 1; border: none; border-radius: 0; border-left: 2px solid #333; }
+
+    .avatar-giant { font-size: 6rem; color: white; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: var(--accent-strong); }
 </style>
 
 <div class="container-fluid py-4">
+    <!-- CABECERA -->
     <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-4 shadow-sm border">
         <div>
             <h4 class="mb-0 fw-bold text-dark"><i class="bi bi-camera-video-fill dynamic-text me-2"></i> Sala de Cursos</h4>
-            <small class="text-muted">ID de Sesión: Sala-Global</small>
+            <div id="display-session-id" class="text-muted mt-1 fw-medium">
+                ID de Sesión: <span class="badge bg-secondary">Sin asignar</span>
+            </div>
+            
+            <!-- CONTROLES EXCLUSIVOS PARA ADMINISTRADOR -->
+            {% if session.get('is_admin') %}
+            <div class="mt-3 d-flex gap-2 flex-wrap">
+                <button id="btn-generar-inv" class="btn btn-sm btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#modalInvitacion">
+                    <i class="bi bi-link-45deg"></i> Generar Invitación
+                </button>
+                <button id="btn-finalizar-sesion" class="btn btn-sm btn-danger fw-bold d-none">
+                    <i class="bi bi-stop-circle"></i> Finalizar Sesión
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-dark fw-bold dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-fill-exclamation text-warning me-1"></i> Poderes Globales
+                    </button>
+                    <ul class="dropdown-menu shadow">
+                        <li><a class="dropdown-item" href="#" onclick="accionMasiva('mic_off')"><i class="bi bi-mic-mute text-danger me-2"></i> Apagar todos los micrófonos</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="accionMasiva('cam_off')"><i class="bi bi-camera-video-off text-danger me-2"></i> Apagar todas las cámaras</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger fw-bold" href="#" onclick="accionMasiva('ambos_off')"><i class="bi bi-slash-circle me-2"></i> Deshabilitar Audio y Video de TODOS</a></li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
         </div>
-        <div>
-            <span class="badge bg-danger rounded-pill px-3 py-2 animate__animated animate__pulse animate__infinite shadow-sm">
+        <div class="text-end">
+            <span class="badge bg-danger rounded-pill px-3 py-2 animate__animated animate__pulse animate__infinite shadow-sm mb-2 d-inline-block">
                 <i class="bi bi-record-circle me-1"></i> En Vivo
             </span>
+            <br>
+            <button id="btn-toggle-layout" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm" title="Cambiar distribución de pantalla">
+                <i class="bi bi-layout-split"></i> Alternar Vista
+            </button>
         </div>
     </div>
 
     <div class="row g-4">
         <!-- ÁREA PRINCIPAL (Main Stage) -->
         <div class="col-lg-9">
-            <div class="bg-dark rounded-4 shadow-sm position-relative d-flex justify-content-center align-items-center" style="height: 60vh; border: 1px solid #dee2e6;">
+            
+            <!-- CONTENEDOR MULTIMEDIA PIP -->
+            <div id="main-stage-wrapper" class="stage-wrapper shadow-sm border layout-media-focus mb-3">
                 
-                <div id="main-stage-container" class="w-100 h-100 p-2 d-flex justify-content-center align-items-center">
-                    <div class="text-center text-secondary">
+                <!-- CAPA DE MATERIAL COMPARTIDO (MP4, Imagen, Placeholder) -->
+                <div class="layer-media" id="layer-media">
+                    <div class="text-center text-secondary w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: #111;">
                         <i class="bi bi-easel-fill display-1 mb-3 opacity-50"></i>
-                        <h5>El escenario está vacío</h5>
-                        <p class="small">Enciende tu cámara o sube un video para comenzar la clase.</p>
+                        <h5>Pizarra Vacía</h5>
                     </div>
                 </div>
 
-                <div class="position-absolute bottom-0 start-50 translate-middle-x w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);">
-                    <div class="d-flex justify-content-center gap-3">
-                        <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Silenciar">
+                <!-- CAPA DEL ORADOR / SUJETO FIJADO -->
+                <div class="layer-speaker" id="layer-speaker">
+                    <div class="text-center text-secondary w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: #222;">
+                        <i class="bi bi-person-bounding-box display-4 mb-2 opacity-50"></i>
+                        <p class="small mb-0">Nadie fijado en pantalla</p>
+                    </div>
+                </div>
+
+                <!-- CONTROLES FLOTANTES -->
+                <div class="position-absolute bottom-0 start-50 translate-middle-x w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); z-index: 10;">
+                    <div class="d-flex justify-content-center gap-3 align-items-end">
+                        <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Micrófono">
                             <i class="bi bi-mic-fill fs-5"></i>
                         </button>
                         <button id="btn-cam" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Cámara">
                             <i class="bi bi-camera-video-fill fs-5"></i>
                         </button>
                         
+                        <button id="btn-mano" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px;" title="Pedir la palabra">
+                            <i class="bi bi-hand-index-thumb-fill fs-5 text-warning"></i>
+                        </button>
+                        
+                        {% if session.get('is_admin') %}
                         <div class="position-relative">
                             <input type="file" id="file-mp4" accept="video/mp4" class="d-none">
-                            <button id="btn-upload-mp4" class="btn dynamic-btn rounded-pill shadow px-4 fw-bold" title="Transmitir Video Grabado">
-                                <i class="bi bi-play-btn-fill me-2"></i> Subir MP4
+                            <button id="btn-upload-mp4" class="btn dynamic-btn rounded-pill shadow px-4 fw-bold" title="Transmitir Video Grabado a la Pizarra">
+                                <i class="bi bi-play-btn-fill me-2"></i> Proyectar MP4
                             </button>
                         </div>
+                        {% endif %}
                         
                         <a href="{{ url_for('tienda.chat') }}" class="btn btn-danger rounded-circle shadow" style="width: 50px; height: 50px;" title="Salir de la reunión">
                             <i class="bi bi-telephone-x-fill fs-5"></i>
@@ -88,25 +160,96 @@
                 </div>
             </div>
 
-            <div id="upload-progress" class="alert dynamic-nav text-white mt-3 d-none shadow-sm border-0">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
-                    <strong style="color: var(--text-on-accent);">Subiendo y sincronizando video con los estudiantes...</strong>
+            <!-- SECCIÓN DE MATERIALES COMPARTIDOS -->
+            <div class="bg-white rounded-4 shadow-sm border p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-folder-symlink-fill dynamic-text me-2"></i> Materiales de la Sesión</h5>
+                
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="input-group shadow-sm">
+                            <label class="input-group-text dynamic-nav text-white border-0" style="cursor: pointer;">
+                                <i class="bi bi-cloud-arrow-up-fill me-2"></i> Subir Archivo
+                                <input type="file" id="file-materiales" class="d-none" accept=".pdf,.jpg,.jpeg,.png,.mp3,.mp4,.txt,.docx,.pptx,.xls,.json,.html,.zip">
+                            </label>
+                            <input type="text" id="url-materiales" class="form-control bg-light" placeholder="O pega un enlace (URL) aquí...">
+                            <button class="btn btn-dark fw-bold px-4" id="btn-compartir-url">Compartir</button>
+                        </div>
+                        <div id="upload-progress" class="text-info mt-2 small fw-bold d-none">
+                            <div class="spinner-border spinner-border-sm me-1"></div> Subiendo y compartiendo material...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre / Enlace</th>
+                                <th>Remitente</th>
+                                <th>Peso</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-materiales">
+                            <!-- Materiales JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3">
-            <div class="bg-white rounded-4 shadow-sm border p-3 h-100 d-flex flex-column">
+        <!-- PANEL LATERAL (Participantes y Turnos) -->
+        <div class="col-lg-3 d-flex flex-column gap-3">
+            
+            <!-- COLA DE PARTICIPACIÓN -->
+            <div class="bg-white rounded-4 shadow-sm border p-3">
+                <h6 class="fw-bold mb-3 border-bottom pb-2 text-warning"><i class="bi bi-hand-index-thumb-fill me-1"></i> Turnos de Palabra</h6>
+                <ul class="list-group list-group-flush" id="lista-turnos">
+                    <!-- Se llena con JS -->
+                    <li class="list-group-item text-muted small border-0 text-center">Nadie ha pedido la palabra.</li>
+                </ul>
+            </div>
+
+            <!-- CUADRÍCULA DE PARTICIPANTES -->
+            <div class="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column">
                 <h6 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-people-fill dynamic-text"></i> Participantes</h6>
                 
-                <div id="participants-grid" class="d-flex flex-wrap gap-2 overflow-auto align-items-start justify-content-center flex-grow-1 pb-2">
+                <div id="participants-grid" class="d-flex flex-wrap gap-2 overflow-auto align-items-start justify-content-center pb-2">
                     <!-- Mi propia cámara -->
                     <div class="participant-container">
-                        <video id="local-video" class="video-participant" autoplay muted playsinline></video>
+                        <video id="local-video" class="video-participant shadow-sm" autoplay muted playsinline></video>
                         <span class="participant-name">Yo</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Generar Invitación -->
+<div class="modal fade" id="modalInvitacion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header dynamic-nav border-0">
+                <h5 class="modal-title fw-bold text-white"><i class="bi bi-calendar-event me-2"></i> Crear Invitación de Sesión</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Fecha de Actividad</label>
+                    <input type="date" id="inv-fecha" class="form-control bg-light" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Hora</label>
+                    <input type="time" id="inv-hora" class="form-control bg-light" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Capacidad Máxima</label>
+                    <input type="number" id="inv-cap" class="form-control bg-light" min="1" value="50" required>
+                </div>
+                <button id="btn-crear-invitacion" class="btn btn-success fw-bold w-100 rounded-pill">
+                    <i class="bi bi-magic me-2"></i> GENERAR Y COPIAR
+                </button>
             </div>
         </div>
     </div>
@@ -118,102 +261,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
     const myId = "{{ session.get('user_id') }}";
     const myName = "{{ session.get('user_nombre') }}";
+    const isAdmin = {{ 'true' if session.get('is_admin') else 'false' }};
 
+    // Elementos DOM
     const localVideo = document.getElementById('local-video');
-    const mainStage = document.getElementById('main-stage-container');
+    const layerMedia = document.getElementById('layer-media');
+    const layerSpeaker = document.getElementById('layer-speaker');
     const btnMic = document.getElementById('btn-mic');
     const btnCam = document.getElementById('btn-cam');
+    const btnMano = document.getElementById('btn-mano');
     const btnUploadMp4 = document.getElementById('btn-upload-mp4');
     const fileMp4 = document.getElementById('file-mp4');
+    
+    // Materiales
+    const fileMateriales = document.getElementById('file-materiales');
+    const urlMateriales = document.getElementById('url-materiales');
+    const btnCompartirUrl = document.getElementById('btn-compartir-url');
     const uploadProgress = document.getElementById('upload-progress');
+    const tablaMateriales = document.getElementById('tabla-materiales');
+    const listaTurnos = document.getElementById('lista-turnos');
 
     let localStream = null;
     let isMicOn = true;
     let isCamOn = true;
+    let miManoLevantada = false;
 
+    // --- FORMATO DE TAMAÑO ---
+    function formatBytes(bytes) {
+        if(bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = 2;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // --- CONEXIÓN ---
     socket.on('connect', () => {
         socket.emit('unirse_lobby', { user_id: myId, nombre: myName });
     });
 
-    // ==========================================
-    // NUEVO: PRESENCIA Y CAJITAS DE MÁS OPCIONES
-    // ==========================================
-    
-    socket.on('lista_participantes_lobby', (lista) => {
-        // Limpiamos las cajitas viejas (excepto nuestra cámara)
-        document.querySelectorAll('.remote-participant').forEach(el => el.remove());
-        
-        // Creamos las cajitas de los que ya estaban en la sala
-        lista.forEach(participante => {
-            if (participante.user_id !== myId) {
-                agregarCajitaParticipante(participante);
-            }
-        });
-    });
-
-    socket.on('nuevo_participante_lobby', (participante) => {
-        // Cuando alguien nuevo entra, creamos su cajita y mostramos notificación
-        if (participante.user_id !== myId) {
-            agregarCajitaParticipante(participante);
-            if(typeof window.showNotification === 'function') {
-                window.showNotification(`${participante.nombre} se unió a la clase.`, "info");
-            }
-        }
-    });
-
-    socket.on('participante_salio_lobby', (participante) => {
-        // Cuando alguien se va, borramos su cajita
-        const cajita = document.getElementById(`part-${participante.user_id}`);
-        if (cajita) {
-            cajita.remove();
-            if(typeof window.showNotification === 'function') {
-                window.showNotification(`${participante.nombre} salió de la sala.`, "error");
-            }
-        }
-    });
-
-    // Función que dibuja la cajita con el menú desplegable
-    function agregarCajitaParticipante(p) {
-        if (document.getElementById(`part-${p.user_id}`)) return; // Evitar repetidos
-        
-        const grid = document.getElementById('participants-grid');
-        const div = document.createElement('div');
-        div.className = 'participant-container remote-participant mb-2';
-        div.id = `part-${p.user_id}`;
-        
-        div.innerHTML = `
-            <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8); border: 2px solid var(--accent-strong);">
-                
-                <!-- Menú de "Más Opciones" -->
-                <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
-                    <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Más opciones">
-                        <i class="bi bi-three-dots-vertical fs-5"></i>
-                    </button>
-                    <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-mic-mute text-danger me-2"></i> Silenciar micro</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-camera-video-off text-danger me-2"></i> Apagar cámara</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger fw-bold" href="#"><i class="bi bi-person-x me-2"></i> Expulsar</a></li>
-                    </ul>
-                </div>
-
-                <!-- Avatar con la Inicial -->
-                <div class="rounded-circle d-flex justify-content-center align-items-center mb-1 text-white fw-bold fs-3 shadow-sm" style="width: 50px; height: 50px; background: var(--accent-strong);">
-                    ${p.nombre.charAt(0).toUpperCase()}
-                </div>
-                <small class="text-white opacity-75"><i class="bi bi-mic-mute-fill text-danger"></i></small>
-            </div>
-            <span class="participant-name shadow-sm">${p.nombre}</span>
-        `;
-        
-        grid.appendChild(div);
-    }
-
+    // --- CÁMARA Y MICRÓFONO LOCAL ---
     async function startMedia() {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
-            setMainStage(localVideo.srcObject);
         } catch (error) {
             console.error("Cámara no detectada:", error);
             if(typeof window.showNotification === 'function') window.showNotification("No se detectó cámara o micrófono.", "error");
@@ -235,58 +327,291 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCam.innerHTML = isCamOn ? '<i class="bi bi-camera-video-fill fs-5"></i>' : '<i class="bi bi-camera-video-off-fill fs-5 text-danger"></i>';
     });
 
-    btnUploadMp4.addEventListener('click', () => fileMp4.click());
+    // --- CONTROL ADMINISTRATIVO FORZADO (RECIBIR ORDEN) ---
+    socket.on('fuerza_accion', (data) => {
+        // Solo ejecuta si el target_id nos corresponde o si es global
+        if(data.target_id && data.target_id !== myId) return;
 
-    fileMp4.addEventListener('change', async function() {
+        const accion = data.accion;
+        if ((accion === 'mic_off' || accion === 'ambos_off') && isMicOn) {
+            btnMic.click();
+            if(typeof window.showNotification === 'function') window.showNotification("El Administrador ha silenciado tu micrófono.", "warning");
+        }
+        if ((accion === 'cam_off' || accion === 'ambos_off') && isCamOn) {
+            btnCam.click();
+            if(typeof window.showNotification === 'function') window.showNotification("El Administrador ha apagado tu cámara.", "warning");
+        }
+    });
+
+    // --- PARTICIPANTES Y CAJITAS ---
+    socket.on('lista_participantes_lobby', (lista) => {
+        document.querySelectorAll('.remote-participant').forEach(el => el.remove());
+        lista.forEach(participante => {
+            if (participante.user_id !== myId) agregarCajitaParticipante(participante);
+        });
+    });
+
+    socket.on('nuevo_participante_lobby', (p) => {
+        if (p.user_id !== myId) {
+            agregarCajitaParticipante(p);
+            if(typeof window.showNotification === 'function') window.showNotification(`${p.nombre} se unió a la clase.`, "info");
+        }
+    });
+
+    socket.on('participante_salio_lobby', (p) => {
+        const cajita = document.getElementById(`part-${p.user_id}`);
+        if (cajita) {
+            cajita.remove();
+            if(typeof window.showNotification === 'function') window.showNotification(`${p.nombre} salió de la sala.`, "error");
+        }
+    });
+
+    function agregarCajitaParticipante(p) {
+        if (document.getElementById(`part-${p.user_id}`)) return; 
+        const grid = document.getElementById('participants-grid');
+        const div = document.createElement('div');
+        div.className = 'participant-container remote-participant mb-2';
+        div.id = `part-${p.user_id}`;
+        
+        let menuAdmin = '';
+        if(isAdmin) {
+            menuAdmin = `
+                <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
+                    <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Controles de Admin">
+                        <i class="bi bi-three-dots-vertical fs-5"></i>
+                    </button>
+                    <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
+                        <li><a class="dropdown-item fw-bold text-success" href="#" onclick="fijarEscenario('${p.user_id}', '${p.nombre}')"><i class="bi bi-pin-angle-fill me-2"></i> Poner en Primera Plana</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="accionIndividual('${p.user_id}', 'mic_off')"><i class="bi bi-mic-mute text-danger me-2"></i> Silenciar individual</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="accionIndividual('${p.user_id}', 'cam_off')"><i class="bi bi-camera-video-off text-danger me-2"></i> Apagar cámara individual</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="accionIndividual('${p.user_id}', 'ambos_off')"><i class="bi bi-slash-circle text-danger me-2"></i> Deshabilitar Ambos</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger fw-bold" href="#" onclick="expulsarUsuario('${p.user_id}')"><i class="bi bi-person-x me-2"></i> Expulsar</a></li>
+                    </ul>
+                </div>`;
+        }
+
+        div.innerHTML = `
+            <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8); border: 2px solid var(--accent-strong);">
+                ${menuAdmin}
+                <div class="rounded-circle d-flex justify-content-center align-items-center mb-1 text-white fw-bold fs-3 shadow-sm" style="width: 50px; height: 50px; background: var(--accent-strong);">
+                    ${p.nombre.charAt(0).toUpperCase()}
+                </div>
+            </div>
+            <span class="participant-name shadow-sm">${p.nombre}</span>
+        `;
+        grid.appendChild(div);
+    }
+
+    // --- ACCIONES GLOBALES E INDIVIDUALES ADMIN ---
+    window.accionMasiva = function(tipo) {
+        if(confirm(`¿Estás seguro de ejecutar esta acción masiva?`)) {
+            socket.emit('admin_accion_masiva', { accion: tipo });
+        }
+    };
+    window.accionIndividual = function(uid, tipo) {
+        socket.emit('admin_accion_individual', { target_id: uid, accion: tipo });
+    };
+
+    // --- SISTEMA DE TURNOS (MANO) ---
+    btnMano.addEventListener('click', () => {
+        miManoLevantada = !miManoLevantada;
+        if(miManoLevantada) {
+            btnMano.classList.replace('btn-dark', 'btn-warning');
+            btnMano.querySelector('i').classList.replace('text-warning', 'text-dark');
+            socket.emit('pedir_palabra', { nombre: myName });
+        } else {
+            btnMano.classList.replace('btn-warning', 'btn-dark');
+            btnMano.querySelector('i').classList.replace('text-dark', 'text-warning');
+            socket.emit('bajar_mano', { user_id: myId });
+        }
+    });
+
+    window.bajarManoAdmin = function(uid) {
+        socket.emit('bajar_mano', { user_id: uid });
+    };
+
+    socket.on('actualizar_cola', (cola) => {
+        listaTurnos.innerHTML = '';
+        if(cola.length === 0) {
+            listaTurnos.innerHTML = '<li class="list-group-item text-muted small border-0 text-center">Nadie ha pedido la palabra.</li>';
+            return;
+        }
+        cola.forEach((u, idx) => {
+            const btnBajar = isAdmin ? `<button class="btn btn-sm btn-link text-danger p-0 ms-auto" title="Bajar Mano" onclick="bajarManoAdmin('${u.user_id}')"><i class="bi bi-hand-thumbs-down-fill"></i></button>` : '';
+            listaTurnos.innerHTML += `
+                <li class="list-group-item d-flex align-items-center py-2 px-1 border-0 border-bottom">
+                    <span class="badge bg-warning text-dark me-2 rounded-circle">${idx + 1}</span>
+                    <span class="fw-medium text-truncate" style="max-width: 140px;">${u.nombre}</span>
+                    ${btnBajar}
+                </li>`;
+        });
+    });
+
+    // --- FIJAR ESCENARIO Y PIP ---
+    let layouts = ['layout-media-focus', 'layout-split', 'layout-speaker-focus'];
+    let currentLayout = 0;
+    const stageWrapper = document.getElementById('main-stage-wrapper');
+
+    document.getElementById('btn-toggle-layout').addEventListener('click', () => {
+        stageWrapper.classList.remove(layouts[currentLayout]);
+        currentLayout = (currentLayout + 1) % layouts.length;
+        stageWrapper.classList.add(layouts[currentLayout]);
+    });
+
+    window.fijarEscenario = function(uid, nom) {
+        socket.emit('fijar_escenario', { user_id: uid, nombre: nom });
+    };
+
+    socket.on('actualizar_escenario', (data) => {
+        layerSpeaker.innerHTML = `
+            <div class="avatar-giant shadow">
+                ${data.nombre.charAt(0).toUpperCase()}
+            </div>
+            <div class="position-absolute bottom-0 start-0 p-2 text-white bg-dark bg-opacity-75 w-100 fw-bold">
+                <i class="bi bi-mic-fill text-success me-1"></i> ${data.nombre}
+            </div>
+        `;
+    });
+
+    // --- GESTIÓN DE MATERIALES Y MP4 ---
+    if(btnUploadMp4) {
+        btnUploadMp4.addEventListener('click', () => fileMp4.click());
+        fileMp4.addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+            uploadProgress.classList.remove('d-none');
+            const formData = new FormData(); formData.append('file', file);
+            try {
+                const res = await fetch('/api/upload_file', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok && data.url) {
+                    socket.emit('transmitir_mp4', { url: data.url, emisor: myName });
+                } else throw new Error(data.error);
+            } catch (err) { alert("Error: " + err.message); } 
+            finally { uploadProgress.classList.add('d-none'); fileMp4.value = ''; }
+        });
+    }
+
+    socket.on('recibir_mp4', (data) => {
+        if(typeof window.showNotification === 'function') window.showNotification(`${data.emisor} proyectó un video.`, "info");
+        layerMedia.innerHTML = `<video src="${data.url}" controls autoplay class="main-stage-video"></video>`;
+        // Cambiar layout para ver multimedia grande
+        stageWrapper.className = `stage-wrapper shadow-sm border layout-media-focus mb-3`;
+        currentLayout = 0;
+    });
+
+    fileMateriales.addEventListener('change', async function() {
         const file = this.files[0];
         if (!file) return;
-
         uploadProgress.classList.remove('d-none');
-        const formData = new FormData();
-        formData.append('file', file);
+        
+        const sizeStr = formatBytes(file.size);
+        const formData = new FormData(); formData.append('file', file);
 
         try {
             const res = await fetch('/api/upload_file', { method: 'POST', body: formData });
             const data = await res.json();
-            
             if (res.ok && data.url) {
-                socket.emit('transmitir_mp4', { url: data.url, emisor: myName });
-                reproducirMp4(data.url); 
-            } else {
-                throw new Error(data.error);
+                socket.emit('compartir_material', {
+                    nombre: data.nombre, url: data.url, peso: sizeStr, remitente: myName, tipo: 'file'
+                });
+            } else throw new Error(data.error);
+        } catch (err) { alert("Error: " + err.message); } 
+        finally { uploadProgress.classList.add('d-none'); fileMateriales.value = ''; }
+    });
+
+    btnCompartirUrl.addEventListener('click', () => {
+        const url = urlMateriales.value.trim();
+        if(!url) return;
+        socket.emit('compartir_material', {
+            nombre: url, url: url, peso: "Enlace", remitente: myName, tipo: 'link'
+        });
+        urlMateriales.value = '';
+    });
+
+    window.borrarMaterial = function(id) {
+        if(confirm("¿Seguro que deseas eliminar este material de la lista?")) {
+            socket.emit('borrar_material', { id: id });
+        }
+    };
+
+    socket.on('actualizar_materiales', (lista) => {
+        tablaMateriales.innerHTML = '';
+        if(lista.length === 0) {
+            tablaMateriales.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No hay materiales compartidos aún.</td></tr>`;
+            return;
+        }
+        lista.forEach(m => {
+            const icon = m.tipo === 'link' ? 'bi-link-45deg text-primary' : 'bi-file-earmark-check-fill text-success';
+            const actionBtn = m.tipo === 'link' 
+                ? `<a href="${m.url}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-box-arrow-up-right"></i> Abrir</a>`
+                : `<a href="${m.url}" download class="btn btn-sm btn-success shadow-sm"><i class="bi bi-download"></i> Descargar</a>`;
+            
+            const btnDel = isAdmin ? `<button class="btn btn-sm btn-danger shadow-sm ms-2" onclick="borrarMaterial('${m.id}')"><i class="bi bi-trash3"></i></button>` : '';
+            
+            tablaMateriales.innerHTML += `
+                <tr>
+                    <td><i class="bi ${icon} fs-5 me-2"></i> <span class="fw-medium text-break" style="max-width: 200px; display: inline-block;">${m.nombre}</span></td>
+                    <td class="text-muted small">${m.remitente}</td>
+                    <td><span class="badge bg-secondary opacity-75">${m.peso}</span></td>
+                    <td class="text-end text-nowrap">${actionBtn}${btnDel}</td>
+                </tr>
+            `;
+        });
+    });
+
+    // --- LOGICA LLAVES ADMIN ---
+    const btnCrearInv = document.getElementById('btn-crear-invitacion');
+    if(btnCrearInv) {
+        btnCrearInv.addEventListener('click', async () => {
+            const f = document.getElementById('inv-fecha').value;
+            const h = document.getElementById('inv-hora').value;
+            const c = document.getElementById('inv-cap').value;
+            if(!f || !h || !c) return alert("Por favor complete fecha, hora y capacidad.");
+            
+            const res = await fetch('/api/generar_invitacion', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fecha: f, hora: h, capacidad: c })
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                document.getElementById('display-session-id').innerHTML = `ID de Sesión: <span class="badge bg-success fs-6" id="current-session-code">${data.codigo}</span>`;
+                navigator.clipboard.writeText(data.codigo).catch(()=>{});
+                alert(`¡Llave de Sesión generada y copiada al portapapeles!\nCódigo: ${data.codigo}`);
+                document.getElementById('btn-generar-inv').classList.add('d-none');
+                document.getElementById('btn-finalizar-sesion').classList.remove('d-none');
+                bootstrap.Modal.getInstance(document.getElementById('modalInvitacion')).hide();
             }
-        } catch (err) {
-            if(typeof window.showNotification === 'function') window.showNotification("Error: " + err.message, "error");
-        } finally {
-            uploadProgress.classList.add('d-none');
-            fileMp4.value = ''; 
+        });
+        
+        document.getElementById('btn-finalizar-sesion').addEventListener('click', async () => {
+            if(!confirm("⚠️ ADVERTENCIA: Si finaliza, cerrará la sesión para todos y la llave actual expirará. ¿Continuar?")) return;
+            const code = document.getElementById('current-session-code').innerText;
+            await fetch('/api/finalizar_invitacion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: code }) });
+            socket.emit('cerrar_sala_global');
+            window.location.href = '/chat';
+        });
+    }
+
+    window.expulsarUsuario = function(uid) {
+        if(confirm("¿Seguro que deseas expulsar a este usuario de la sala?")) {
+            socket.emit('expulsar_usuario', { user_id: uid });
+        }
+    };
+
+    socket.on('sala_cerrada', () => {
+        alert("El administrador ha finalizado la sesión virtual. La llave expiró.");
+        window.location.href = '/chat';
+    });
+
+    socket.on('usuario_expulsado', (d) => {
+        if(d.user_id == myId) {
+            alert("Has sido expulsado de la sala.");
+            window.location.href = '/chat';
         }
     });
-
-    socket.on('recibir_mp4', (data) => {
-        if(typeof window.showNotification === 'function') window.showNotification(`${data.emisor} está presentando un video.`, "info");
-        reproducirMp4(data.url);
-    });
-
-    function reproducirMp4(url) {
-        mainStage.innerHTML = '';
-        const videoEl = document.createElement('video');
-        videoEl.src = url;
-        videoEl.controls = true;
-        videoEl.autoplay = true;
-        videoEl.className = 'main-stage-video shadow';
-        mainStage.appendChild(videoEl);
-    }
-
-    function setMainStage(stream) {
-        mainStage.innerHTML = '';
-        const videoEl = document.createElement('video');
-        videoEl.srcObject = stream;
-        videoEl.autoplay = true;
-        videoEl.muted = true; 
-        videoEl.className = 'main-stage-video shadow';
-        mainStage.appendChild(videoEl);
-    }
 });
 </script>
 {% endblock %}

@@ -75,3 +75,14 @@ class Mensaje(db.Model):
             'leido': self.leido,
             'borrado': self.borrado
         }
+
+# NUEVO: Tabla para las llaves de invitación al Lobby
+class Invitacion(db.Model):
+    __tablename__ = 'invitaciones'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+    fecha_actividad = db.Column(db.String(20))
+    hora_actividad = db.Column(db.String(10))
+    capacidad = db.Column(db.Integer)
+    activa = db.Column(db.Boolean, default=True)
+    creador_id = db.Column(db.Integer, db.ForeignKey('users.id'))

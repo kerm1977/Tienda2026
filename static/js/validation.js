@@ -1,4 +1,5 @@
 // Nombre del archivo: static/js/validation.js
+
 document.addEventListener('DOMContentLoaded', function() {
     
     // --- LÓGICA DE TEMAS DINÁMICOS ---
@@ -224,5 +225,31 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) { showNotification("Error al leer el archivo JSON.", "error"); }
         };
         reader.readAsText(file);
+    }
+
+    // NUEVO: Lógica de formulario para Invitados
+    const formInvitado = document.getElementById('formInvitado');
+    if(formInvitado) {
+        formInvitado.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('codigo_invitacion').value.trim().toUpperCase();
+            const nombre = document.getElementById('nombre_invitado').value.trim();
+            
+            try {
+                const response = await fetch('/api/login_invitado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo, nombre })
+                });
+                const result = await response.json();
+                if(result.status === 'success') {
+                    window.location.href = result.redirect;
+                } else {
+                    showNotification(result.mensaje, 'error');
+                }
+            } catch (e) {
+                showNotification("Error de red", "error");
+            }
+        });
     }
 });
