@@ -4,12 +4,12 @@ from db import db
 from routes import tienda_bp, admin_bp
 import os
 from flask_socketio import SocketIO, emit, join_room
-from sqlalchemy import text 
+from sqlalchemy import text
 
 # Instancia global de SocketIO
 socketio = SocketIO()
 
-# Diccionario para rastrear usuarios conectados: {user_id: sid}
+# Diccionarios globales para el entorno
 usuarios_conectados = {}
 usuarios_lobby = {} 
 
@@ -18,7 +18,7 @@ estado_lobby = {
     'cola_palabra': [],
     'materiales': [],
     'fijado': None,
-    'permiso_materiales': False # Control de permisos para subir archivos
+    'presentador_actual': None # NUEVO: Rastrear quién es el presentador activo
 }
 
 def create_app():
@@ -29,7 +29,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base_dir, 'tienda.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Uso de variable de entorno para la SECRET_KEY (con fallback para dev local)
+    # MEJORA: Uso de variable de entorno para la SECRET_KEY (con fallback para dev local)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'llave_secreta_glassmorphic_store_123')
     
     # Inicializar la base de datos con la app
@@ -39,8 +39,7 @@ def create_app():
     app.register_blueprint(tienda_bp)
     app.register_blueprint(admin_bp)
     
-    # MEJORA SEGURIDAD (Punto 3.D): Configuración de CORS basada en entorno. 
-    # En producción deberías definir CORS_ORIGINS="https://tudominio.com"
+    # MEJORA SEGURIDAD: Configuración de CORS basada en entorno. 
     origenes_permitidos = os.environ.get('CORS_ORIGINS', '*')
     if origenes_permitidos != '*':
         origenes_permitidos = origenes_permitidos.split(',')
@@ -80,6 +79,7 @@ def create_app():
 # =======================================================
 # --- EVENTOS DE SOCKET.IO PARA EL CHAT AVANZADO ---
 # =======================================================
+
 @socketio.on('conectar_usuario')
 def handle_conectar(data):
     # SOLUCIÓN DE SEGURIDAD: Confiar en la sesión del servidor, no en el cliente
@@ -105,7 +105,14 @@ def handle_disconnect():
     # Remover al usuario de la sala virtual si cierra la página
     if request.sid in usuarios_lobby:
         user_data = usuarios_lobby.pop(request.sid)
+        
+        # Si tenía la mano levantada, la bajamos
         estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_data['user_id']]
+        
+        # Si era el presentador, quitar el rol
+        if estado_lobby['presentador_actual'] and estado_lobby['presentador_actual']['user_id'] == user_data['user_id']:
+            estado_lobby['presentador_actual'] = None
+        
         emit('participante_salio_lobby', {'user_id': user_data['user_id'], 'nombre': user_data['nombre']}, room='LobbyGlobal')
         emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
 
@@ -117,9 +124,8 @@ def handle_mensaje(data):
     # SOLUCIÓN SPOOFING: Obtenemos el remitente desde la sesión segura
     remitente_id = session.get('user_id')
     if not remitente_id:
-        # MEJORA (Punto 4.1): Loguear el intento silencioso
         print("⚠️ Intento de envío de mensaje rechazado: No hay sesión activa.")
-        return 
+        return # Si no hay sesión, abortar operación
     
     nuevo_msg = Mensaje(
         remitente_id=remitente_id, # <-- Seguro
@@ -186,7 +192,6 @@ def handle_borrar(data):
                 db.session.commit()
             emit('mensaje_oculto', {'id': msg_id}, room=f"user_{user_id}")
 
-
 # =======================================================
 # --- EVENTOS DEL LOBBY DE VIDEOLLAMADAS Y MATERIALES ---
 # =======================================================
@@ -194,23 +199,26 @@ def handle_borrar(data):
 @socketio.on('webrtc_signal')
 def handle_webrtc_signal(data):
     """
-    CORRECCIÓN CRÍTICA WEBRTC (Punto 3.A):
-    En lugar de hacer broadcast a todos (lo cual rompe el Peer-to-Peer y satura la sala),
-    ahora enviamos la señal estrictamente al usuario destino (target_id).
+    SOLUCIÓN WEBRTC CRÍTICA:
+    En lugar de hacer broadcast, se envía la señal de P2P ESTRICTAMENTE 
+    al target correspondiente, evitando saturación de red.
     """
-    target_id = data.get('target_id')
+    target_id = data.get('to')
     if target_id:
         emit('webrtc_signal', data, room=f"user_{target_id}")
-    else:
-        # Fallback temporal por si el frontend no ha sido actualizado aún
-        emit('webrtc_signal', data, broadcast=True, include_self=False)
 
 @socketio.on('unirse_lobby')
 def handle_unirse_lobby(data):
     user_id = str(session.get('user_id'))
     nombre = data.get('nombre')
     if user_id:
+        # Añadimos al usuario a la sala global del lobby
         join_room('LobbyGlobal')
+        
+        # FIX WEBRTC: Añadir al usuario a su propia sala privada para que pueda recibir 
+        # las señales P2P (ofertas y respuestas de video) de los otros usuarios.
+        join_room(f"user_{user_id}")
+        
         usuarios_lobby[request.sid] = {'user_id': user_id, 'nombre': nombre}
         
         # Enviar el estado completo al recién llegado
@@ -218,18 +226,21 @@ def handle_unirse_lobby(data):
         emit('actualizar_cola', estado_lobby['cola_palabra'], room=request.sid)
         emit('actualizar_materiales', estado_lobby['materiales'], room=request.sid)
         
-        # Enviar permiso inicial de subida de materiales
-        emit('estado_inicial_lobby', {'permiso_materiales': estado_lobby['permiso_materiales']}, room=request.sid)
-        
         if estado_lobby['fijado']:
             emit('actualizar_escenario', estado_lobby['fijado'], room=request.sid)
+            
+        if estado_lobby['presentador_actual']:
+            emit('nuevo_presentador', estado_lobby['presentador_actual'], room=request.sid)
             
         emit('nuevo_participante_lobby', {'user_id': user_id, 'nombre': nombre}, room='LobbyGlobal', include_self=False)
 
 @socketio.on('transmitir_mp4')
 def handle_transmitir_mp4(data):
-    emit('recibir_mp4', data, room='LobbyGlobal', include_self=False)
+    # FIX PIZARRA: Removido include_self=False para que el admin también 
+    # reciba la actualización y vea el archivo que acaba de subir.
+    emit('recibir_mp4', data, room='LobbyGlobal')
 
+# --- Controles Administrativos y Vistas ---
 @socketio.on('cerrar_sala_global')
 def handle_cerrar_sala():
     if session.get('is_admin'):
@@ -248,7 +259,25 @@ def handle_accion_masiva(data):
 @socketio.on('admin_accion_individual')
 def handle_accion_individual(data):
     if session.get('is_admin'):
-        emit('fuerza_accion', {'accion': data.get('accion')}, room=f"user_{data.get('target_id')}")
+        target_id = data.get('target_id')
+        emit('fuerza_accion', {'accion': data.get('accion')}, room=f"user_{target_id}")
+
+@socketio.on('admin_sync_layout')
+def handle_sync_layout(data):
+    """ NUEVO: Sincronizar el layout visual para todos los usuarios """
+    # Pueden sincronizar si son admin o si son el presentador designado
+    is_admin = session.get('is_admin')
+    is_presenter = estado_lobby['presentador_actual'] and estado_lobby['presentador_actual']['user_id'] == str(session.get('user_id'))
+    
+    if is_admin or is_presenter:
+        emit('force_sync_layout', data, room='LobbyGlobal', include_self=False)
+
+@socketio.on('admin_asignar_presentador')
+def handle_asignar_presentador(data):
+    """ NUEVO: Asignar permisos de presentador a un usuario de la sala """
+    if session.get('is_admin'):
+        estado_lobby['presentador_actual'] = data
+        emit('nuevo_presentador', data, room='LobbyGlobal')
 
 # --- Petición de Turnos (Levantar Mano) ---
 @socketio.on('pedir_palabra')
@@ -261,6 +290,7 @@ def handle_pedir_palabra(data):
 
 @socketio.on('bajar_mano')
 def handle_bajar_mano(data):
+    # Puede bajarla el usuario o un admin
     user_id = str(data.get('user_id')) 
     estado_lobby['cola_palabra'] = [u for u in estado_lobby['cola_palabra'] if u['user_id'] != user_id]
     emit('actualizar_cola', estado_lobby['cola_palabra'], room='LobbyGlobal')
@@ -268,21 +298,23 @@ def handle_bajar_mano(data):
 # --- Control de Escenario (PiP) ---
 @socketio.on('fijar_escenario')
 def handle_fijar(data):
-    if session.get('is_admin'):
+    # Ahora los admins y el presentador pueden fijar el escenario global
+    is_admin = session.get('is_admin')
+    is_presenter = estado_lobby['presentador_actual'] and estado_lobby['presentador_actual']['user_id'] == str(session.get('user_id'))
+    
+    if is_admin or is_presenter:
         estado_lobby['fijado'] = data
-        emit('actualizar_escenario', data, room='LobbyGlobal')
+        # Mantenemos include_self=False aquí porque en lobby.html la función fijarEscenario() ya lo actualiza localmente.
+        emit('actualizar_escenario', data, room='LobbyGlobal', include_self=False)
 
 # --- Gestión de Materiales ---
-@socketio.on('toggle_permiso_materiales')
-def handle_toggle_materiales(data):
-    if session.get('is_admin'):
-        estado_lobby['permiso_materiales'] = data.get('permitir')
-        emit('actualizar_permiso_materiales', {'permitir': estado_lobby['permiso_materiales']}, room='LobbyGlobal')
-
 @socketio.on('compartir_material')
 def handle_material(data):
-    # Verificamos que el usuario tenga permiso para subir (sea admin o permiso activo)
-    if session.get('is_admin') or estado_lobby['permiso_materiales']:
+    # Solo Admins y Presentadores pueden inyectar material en la lista
+    is_admin = session.get('is_admin')
+    is_presenter = estado_lobby['presentador_actual'] and estado_lobby['presentador_actual']['user_id'] == str(session.get('user_id'))
+    
+    if is_admin or is_presenter:
         import uuid
         data['id'] = str(uuid.uuid4())
         estado_lobby['materiales'].append(data)
@@ -297,4 +329,4 @@ def handle_borrar_material(data):
 
 if __name__ == '__main__':
     app = create_app()
-    socketio.run(app, debug=True)
+    socketio.run(app, host='0.0.0.0', port=3000, debug=True)
