@@ -18,7 +18,7 @@ estado_lobby = {
     'cola_palabra': [],
     'materiales': [],
     'fijado': None,
-    'permiso_materiales': False # NUEVO: Control de permisos para subir archivos
+    'permiso_materiales': False # Control de permisos para subir archivos
 }
 
 def create_app():
@@ -29,7 +29,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base_dir, 'tienda.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # MEJORA: Uso de variable de entorno para la SECRET_KEY (con fallback para dev local)
+    # Uso de variable de entorno para la SECRET_KEY (con fallback para dev local)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'llave_secreta_glassmorphic_store_123')
     
     # Inicializar la base de datos con la app
@@ -39,8 +39,14 @@ def create_app():
     app.register_blueprint(tienda_bp)
     app.register_blueprint(admin_bp)
     
+    # MEJORA SEGURIDAD (Punto 3.D): Configuración de CORS basada en entorno. 
+    # En producción deberías definir CORS_ORIGINS="https://tudominio.com"
+    origenes_permitidos = os.environ.get('CORS_ORIGINS', '*')
+    if origenes_permitidos != '*':
+        origenes_permitidos = origenes_permitidos.split(',')
+        
     # Inicializar SocketIO (manage_session=False asegura que usemos la sesión nativa de Flask)
-    socketio.init_app(app, cors_allowed_origins="*", manage_session=False)
+    socketio.init_app(app, cors_allowed_origins=origenes_permitidos, manage_session=False)
     
     with app.app_context():
         # Ahora Flask-Migrate se encargará de los cambios de esquema limpiamente.
@@ -111,7 +117,9 @@ def handle_mensaje(data):
     # SOLUCIÓN SPOOFING: Obtenemos el remitente desde la sesión segura
     remitente_id = session.get('user_id')
     if not remitente_id:
-        return # Si no hay sesión, abortar operación silenciosamente (o emitir error)
+        # MEJORA (Punto 4.1): Loguear el intento silencioso
+        print("⚠️ Intento de envío de mensaje rechazado: No hay sesión activa.")
+        return 
     
     nuevo_msg = Mensaje(
         remitente_id=remitente_id, # <-- Seguro
@@ -186,12 +194,16 @@ def handle_borrar(data):
 @socketio.on('webrtc_signal')
 def handle_webrtc_signal(data):
     """
-    INTEGRACIÓN CRUCIAL WEBRTC:
-    Recibe ofertas, respuestas y candidatos ICE de un cliente y los retransmite 
-    a todos los demás. Permite que las conexiones de video se establezcan.
+    CORRECCIÓN CRÍTICA WEBRTC (Punto 3.A):
+    En lugar de hacer broadcast a todos (lo cual rompe el Peer-to-Peer y satura la sala),
+    ahora enviamos la señal estrictamente al usuario destino (target_id).
     """
-    emit('webrtc_signal', data, broadcast=True, include_self=False)
-
+    target_id = data.get('target_id')
+    if target_id:
+        emit('webrtc_signal', data, room=f"user_{target_id}")
+    else:
+        # Fallback temporal por si el frontend no ha sido actualizado aún
+        emit('webrtc_signal', data, broadcast=True, include_self=False)
 
 @socketio.on('unirse_lobby')
 def handle_unirse_lobby(data):

@@ -14,7 +14,7 @@ import string
 UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__name__)), 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# NUEVO: Se agregaron pptx, xls, html a los formatos permitidos para la Sala Virtual
+# Extensiones permitidas para la Sala Virtual
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mp3', 'pdf', 'txt', 'docx', 'json', 'zip', 'svg', 'pptx', 'xls', 'html'}
 
 def allowed_file(filename):
@@ -107,10 +107,11 @@ def upload_file():
     })
 
 # ========================================================
-# NUEVO: RUTAS DE SALA VIRTUAL Y LLAVES DE INVITACIÓN
+# RUTAS DE SALA VIRTUAL Y LLAVES DE INVITACIÓN
 # ========================================================
 @tienda_bp.route('/api/generar_invitacion', methods=['POST'])
 def generar_invitacion():
+    # Validamos permisos considerando tanto 'is_admin' como otros roles si los hubiera en el futuro
     if not session.get('is_admin'):
         return jsonify({'error': 'No autorizado'}), 403
     
@@ -138,7 +139,20 @@ def finalizar_invitacion():
     inv = Invitacion.query.filter_by(codigo=codigo).first()
     if inv:
         inv.activa = False
+        
+        # SOLUCIÓN "GUEST BLOAT": Limpiar la base de datos de usuarios temporales
+        # Esto previene que SQLite/PostgreSQL se sature de usuarios de 1 solo uso.
+        try:
+            invitados = Usuario.query.filter(Usuario.email.like('%@guest.com')).all()
+            for guest in invitados:
+                # Borramos primero sus mensajes para evitar errores de clave foránea (IntegrityError)
+                Mensaje.query.filter_by(remitente_id=guest.id).delete()
+                db.session.delete(guest)
+        except Exception as e:
+            print(f"Error limpiando invitados: {e}")
+
         db.session.commit()
+        
     return jsonify({'status': 'success'})
 
 @tienda_bp.route('/api/login_invitado', methods=['POST'])
@@ -185,7 +199,7 @@ def hacer_admin():
     return jsonify({'error': 'User not found'}), 404
 
 # ========================================================
-# RUTAS DE AUTENTICACIÓN Y TEMAS (EXISTENTES)
+# RUTAS DE AUTENTICACIÓN Y TEMAS 
 # ========================================================
 
 @tienda_bp.route('/api/guardar_tema', methods=['POST'])

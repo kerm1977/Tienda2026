@@ -1,3 +1,4 @@
+<!-- Nombre del archivo: templates/lobby.html -->
 {% extends 'base.html' %}
 
 {% block content %}
@@ -41,16 +42,36 @@
         backdrop-filter: blur(4px);
     }
 
-    /* SISTEMA PIP Y VISTAS DE PRESENTACIÓN (6 LAYOUTS EXACTOS) */
+    /* BOTONES FLOTANTES RESPONSIVOS (Redondos y se achican en móvil) */
+    .floating-btn { width: 50px; height: 50px; transition: 0.3s; }
+    .floating-btn i { font-size: 1.25rem; }
+    
+    @media (max-width: 767px) {
+        .floating-btn { width: 40px !important; height: 40px !important; }
+        .floating-btn i { font-size: 1rem !important; }
+        .floating-pill { font-size: 0.85rem !important; padding-left: 1rem !important; padding-right: 1rem !important; }
+    }
+
+    /* SISTEMA PIP Y VISTAS DE PRESENTACIÓN (7 LAYOUTS) + ASPECTO 16:9 RESPONSIVO */
     .stage-wrapper { 
         position: relative; 
         width: 100%; 
-        height: 60vh; 
         background: #111; 
         border-radius: 1rem; 
         overflow: hidden; 
+        transition: all 0.3s ease;
     }
-    .layer-media, .layer-speaker, .layer-admin { 
+    
+    /* Regla 16:9 para Escritorio/Tablets */
+    @media (min-width: 768px) {
+        .stage-wrapper { aspect-ratio: 16 / 9; height: auto !important; }
+    }
+    /* Proporcional para móviles */
+    @media (max-width: 767px) {
+        .stage-wrapper { height: 60vh; }
+    }
+
+    .layer-media, .layer-speaker, .layer-admin, .layer-gallery { 
         position: absolute; 
         transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
         display: flex;
@@ -65,18 +86,24 @@
         transform: scale(0.8);
         pointer-events: none;
     }
+    .layer-gallery {
+        opacity: 0; pointer-events: none; z-index: -1;
+        width: 100%; height: 100%; top: 0; left: 0;
+    }
     
     .main-stage-video { width: 100%; height: 100%; object-fit: contain; }
     
     /* Layout 1: Foco en Persona (Persona Grande, Admin Abajo-Izq, Pizarra Abajo-Der) */
     .layout-1 .layer-speaker { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; border: none; border-radius: 0; }
-    .layout-1 .layer-media { width: 25%; height: 25%; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
-    .layout-1 .layer-admin { opacity: 1; pointer-events: auto; transform: scale(1); width: 25%; height: 25%; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    .layout-1 .layer-media { width: 20%; aspect-ratio: 16/9; height: auto; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    /* Corrección Proporción 1:1 solicitada para los avatares */
+    .layout-1 .layer-admin { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
     
     /* Layout 2: Foco en Pizarra (Pizarra Grande, Admin Abajo-Izq, Persona Abajo-Der) */
     .layout-2 .layer-media { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; }
-    .layout-2 .layer-speaker { width: 25%; height: 25%; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
-    .layout-2 .layer-admin { opacity: 1; pointer-events: auto; transform: scale(1); width: 25%; height: 25%; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    /* Corrección Proporción 1:1 solicitada para los avatares */
+    .layout-2 .layer-speaker { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
+    .layout-2 .layer-admin { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
     
     /* Layout 3: Mitades (Persona Izquierda, Pizarra Derecha) */
     .layout-3 .layer-speaker { width: 50%; height: 100%; top: 0; left: 0; z-index: 1; border-radius: 0; border: none; border-right: 2px solid #333; }
@@ -94,6 +121,10 @@
     .layout-6 .layer-admin { opacity: 1; pointer-events: auto; transform: scale(1); width: 25%; height: 100%; top: 0; left: 0; z-index: 1; border-right: 2px solid #333; background: #1a1a1a; }
     .layout-6 .layer-media { width: 50%; height: 100%; top: 0; left: 25%; z-index: 1; border-radius: 0; }
     .layout-6 .layer-speaker { width: 25%; height: 100%; top: 0; left: 75%; z-index: 1; border: none; border-radius: 0; border-left: 2px solid #333; }
+
+    /* Layout 7: Galería (Todos juntos adentro) */
+    .layout-7 .layer-media, .layout-7 .layer-speaker, .layout-7 .layer-admin { opacity: 0 !important; pointer-events: none !important; z-index: -1; }
+    .layout-7 .layer-gallery { opacity: 1 !important; pointer-events: auto !important; z-index: 5; background: #111; }
 
     .avatar-giant { font-size: 6rem; color: white; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: var(--accent-strong); }
 </style>
@@ -134,10 +165,6 @@
             <span class="badge bg-danger rounded-pill px-3 py-2 animate__animated animate__pulse animate__infinite shadow-sm mb-2 d-inline-block">
                 <i class="bi bi-record-circle me-1"></i> En Vivo
             </span>
-            <br>
-            <button id="btn-toggle-layout" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm" title="Cambiar distribución de pantalla">
-                <i class="bi bi-layout-split"></i> Alternar Vista
-            </button>
         </div>
     </div>
 
@@ -145,6 +172,11 @@
         <!-- ÁREA PRINCIPAL (Main Stage) -->
         <div class="col-lg-9">
             
+            <!-- INDICADOR DE VISTA EN PARTE SUPERIOR AFUERA -->
+            <div id="layout-indicator-container" class="mb-2 d-none d-flex justify-content-between align-items-center bg-white p-2 rounded shadow-sm border">
+                <span class="fw-bold text-dark"><i class="bi bi-display me-1 text-primary"></i> Vista Activa: <span id="layout-name-display" class="text-primary">Foco Pizarra</span></span>
+            </div>
+
             <!-- CONTENEDOR MULTIMEDIA PIP -->
             <!-- Inicia por defecto en layout-2 (Pizarra Grande, Presentador Pequeño) -->
             <div id="main-stage-wrapper" class="stage-wrapper shadow-sm border layout-2 mb-3">
@@ -182,33 +214,40 @@
                     {% endif %}
                 </div>
 
+                <!-- NUEVA CAPA GALERÍA (Para alojar todos los contactos adentro) -->
+                <div class="layer-gallery" id="layer-gallery">
+                    <div id="grid-host-main" class="w-100 h-100 d-flex flex-wrap align-items-center justify-content-center p-3 overflow-auto"></div>
+                </div>
+
                 <!-- CONTROLES FLOTANTES -->
                 <div class="position-absolute bottom-0 start-50 translate-middle-x w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); z-index: 10;">
                     <div class="d-flex justify-content-center gap-3 align-items-end">
-                        <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px; transition: 0.3s;" title="Micrófono">
-                            <i class="bi bi-mic-fill fs-5"></i>
+                        <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Micrófono">
+                            <i class="bi bi-mic-fill"></i>
                         </button>
-                        <button id="btn-cam" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px; transition: 0.3s;" title="Cámara">
-                            <i class="bi bi-camera-video-fill fs-5"></i>
-                        </button>
-                        
-                        <button id="btn-mano" class="btn btn-dark rounded-circle shadow border border-secondary" style="width: 50px; height: 50px; transition: 0.3s;" title="Pedir la palabra">
-                            <i class="bi bi-hand-index-thumb-fill fs-5 text-warning"></i>
+                        <button id="btn-cam" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Cámara">
+                            <i class="bi bi-camera-video-fill"></i>
                         </button>
                         
-                        <!-- BOTÓN DE PRESENTACIÓN ADMINISTRADOR/SUPERUSUARIO -->
-                        {% if is_manager %}
-                        <div class="position-relative">
-                            <!-- Acepta múltiples formatos ahora -->
+                        <button id="btn-mano" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Pedir la palabra">
+                            <i class="bi bi-hand-index-thumb-fill text-warning"></i>
+                        </button>
+
+                        <!-- NUEVO BOTÓN ALTERNAR VISTA AQUÍ ADENTRO -->
+                        <button id="btn-toggle-layout" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Alternar Vista">
+                            <i class="bi bi-layout-split text-info"></i>
+                        </button>
+                        
+                        <!-- BOTÓN DE PRESENTACIÓN (Aparece dinámico para Admins o Presentadores) -->
+                        <div class="position-relative {% if not is_manager %}d-none{% endif %}" id="btn-upload-mp4-container">
                             <input type="file" id="file-mp4" accept=".mp4,.mp3,.pdf,.jpg,.jpeg,.png,.txt,.docx,.pptx" class="d-none">
-                            <button id="btn-upload-mp4" class="btn btn-primary rounded-pill shadow px-4 fw-bold" title="Proyectar archivo en la pizarra principal">
-                                <i class="bi bi-easel-fill me-2"></i> Proyectar Archivo
+                            <button id="btn-upload-mp4" class="btn btn-primary rounded-pill shadow px-3 fw-bold floating-btn floating-pill w-auto" title="Proyectar archivo en la pizarra principal">
+                                <i class="bi bi-easel-fill"></i> <span class="d-none d-md-inline ms-1">Proyectar</span>
                             </button>
                         </div>
-                        {% endif %}
                         
-                        <a href="{{ url_for('tienda.chat') if 'tienda.chat' in url_for.__globals__ else '/' }}" class="btn btn-danger rounded-circle shadow" style="width: 50px; height: 50px; transition: 0.3s;" title="Salir de la reunión">
-                            <i class="bi bi-telephone-x-fill fs-5"></i>
+                        <a href="{{ url_for('tienda.chat') if 'tienda.chat' in url_for.__globals__ else '/' }}" class="btn btn-danger rounded-circle shadow floating-btn" title="Salir de la reunión">
+                            <i class="bi bi-telephone-x-fill"></i>
                         </a>
                     </div>
                 </div>
@@ -273,27 +312,36 @@
             <!-- CUADRÍCULA DE PARTICIPANTES -->
             <div class="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column">
                 <h6 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-people-fill text-primary"></i> Participantes</h6>
+                
+                <!-- NUEVO: Buscador en Vivo -->
+                <div class="mb-3">
+                    <input type="text" id="buscar-participante" class="form-control form-control-sm rounded-pill bg-light border-secondary" placeholder="🔍 Buscar contacto...">
+                </div>
+
                 <p class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-info-circle"></i> Haz clic en tu cámara o la de otro para verla en la pantalla central (solo tú lo verás).</p>
 
-                <div id="participants-grid" class="d-flex flex-wrap gap-2 overflow-auto align-items-start justify-content-center pb-2">
-                    
-                    <!-- MI PROPIA CÁMARA CON PERMISOS -->
-                    <div class="participant-container" id="local-participant-container">
-                        <!-- El evento se asigna desde JS para tener acceso al objeto completo de la cámara -->
-                        <video id="local-video" class="video-participant shadow-sm" style="transform: scaleX(-1);" autoplay muted playsinline title="Haz clic para verte en pantalla principal"></video>
-                        {% if is_manager %}
-                        <!-- Menú de la propia cámara del superusuario/admin -->
-                        <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
-                            <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Mis Controles" onclick="event.stopPropagation();">
-                                <i class="bi bi-three-dots-vertical fs-5" style="filter: drop-shadow(0 0 2px black);"></i>
-                            </button>
-                            <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
-                                <li><a class="dropdown-item fw-bold text-success" href="javascript:void(0);" onclick="fijarEscenario(myId, myName)"><i class="bi bi-pin-angle-fill me-2"></i> Fijar para TODOS (Global)</a></li>
-                                <li><a class="dropdown-item fw-bold text-warning" href="javascript:void(0);" onclick="toggleGridPin(myId)"><i class="bi bi-star-fill me-2"></i> Destacarme en lista (Estrella)</a></li>
-                            </ul>
+                <!-- El Host nativo en el sidebar -->
+                <div id="grid-host-sidebar" class="d-flex flex-grow-1 flex-column w-100">
+                    <div id="participants-grid" class="d-flex flex-wrap gap-2 overflow-auto align-items-start justify-content-center pb-2 w-100 h-100">
+                        
+                        <!-- MI PROPIA CÁMARA CON PERMISOS -->
+                        <div class="participant-container" id="local-participant-container">
+                            <!-- El evento se asigna desde JS para tener acceso al objeto completo de la cámara -->
+                            <video id="local-video" class="video-participant shadow-sm" style="transform: scaleX(-1);" autoplay muted playsinline title="Haz clic para verte en pantalla principal"></video>
+                            {% if is_manager %}
+                            <!-- Menú de la propia cámara del superusuario/admin -->
+                            <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
+                                <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Mis Controles" onclick="event.stopPropagation();">
+                                    <i class="bi bi-three-dots-vertical fs-5" style="filter: drop-shadow(0 0 2px black);"></i>
+                                </button>
+                                <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
+                                    <li><a class="dropdown-item fw-bold text-success" href="javascript:void(0);" onclick="fijarEscenario(myId, myName)"><i class="bi bi-pin-angle-fill me-2"></i> Fijar para TODOS (Global)</a></li>
+                                    <li><a class="dropdown-item fw-bold text-warning" href="javascript:void(0);" onclick="toggleGridPin(myId)"><i class="bi bi-star-fill me-2"></i> Destacarme en lista (Estrella)</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            <span class="participant-name">Yo</span>
                         </div>
-                        {% endif %}
-                        <span class="participant-name">Yo</span>
                     </div>
                 </div>
             </div>
@@ -345,6 +393,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Usamos la variable consolidada is_manager para los permisos JS
     const isAdmin = {{ 'true' if is_manager else 'false' }};
+    let isPresenter = false; // Variable local para presentadores asignados
+
+    // --- FUNCIÓN PARA EVITAR XSS ---
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.toString().replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag])
+        );
+    }
 
     // Elementos DOM
     const localVideo = document.getElementById('local-video');
@@ -371,13 +434,29 @@ document.addEventListener('DOMContentLoaded', () => {
     let miManoLevantada = false;
     let pinnedToGrid = []; // Estrellas fijadas
 
+    // NUEVO: Lógica del Buscador en Vivo
+    const searchInput = document.getElementById('buscar-participante');
+    if(searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('#participants-grid .participant-container').forEach(p => {
+                if(p.id === 'local-participant-container') return; // Excluye "Yo" de la búsqueda si quieres, o quita esta línea.
+                const nameEl = p.querySelector('.participant-name');
+                if (nameEl) {
+                    const name = nameEl.innerText.toLowerCase();
+                    p.style.display = name.includes(term) ? 'inline-block' : 'none';
+                }
+            });
+        });
+    }
+
     // --- SISTEMA DE NOTIFICACIONES ---
     window.showNotification = function(mensaje, tipo = 'info') {
         const container = document.getElementById('toast-container');
         if (!container) return;
         
-        const bgClass = tipo === 'error' ? 'bg-danger' : tipo === 'warning' ? 'bg-warning text-dark' : 'bg-primary';
-        const iconClass = tipo === 'error' ? 'bi-exclamation-triangle' : tipo === 'warning' ? 'bi-exclamation-circle' : 'bi-info-circle';
+        const bgClass = tipo === 'error' ? 'bg-danger' : tipo === 'warning' ? 'bg-warning text-dark' : tipo === 'success' ? 'bg-success' : 'bg-primary';
+        const iconClass = tipo === 'error' ? 'bi-exclamation-triangle' : tipo === 'warning' ? 'bi-exclamation-circle' : tipo === 'success' ? 'bi-check-circle' : 'bi-info-circle';
         
         const toastHtml = `
             <div class="toast align-items-center text-white ${bgClass} border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
@@ -440,14 +519,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!localStream) return;
         isMicOn = !isMicOn;
         localStream.getAudioTracks()[0].enabled = isMicOn;
-        btnMic.innerHTML = isMicOn ? '<i class="bi bi-mic-fill fs-5"></i>' : '<i class="bi bi-mic-mute-fill fs-5 text-danger"></i>';
+        btnMic.innerHTML = isMicOn ? '<i class="bi bi-mic-fill"></i>' : '<i class="bi bi-mic-mute-fill text-danger"></i>';
     });
 
     btnCam.addEventListener('click', () => {
         if (!localStream) return;
         isCamOn = !isCamOn;
         localStream.getVideoTracks()[0].enabled = isCamOn;
-        btnCam.innerHTML = isCamOn ? '<i class="bi bi-camera-video-fill fs-5"></i>' : '<i class="bi bi-camera-video-off-fill fs-5 text-danger"></i>';
+        btnCam.innerHTML = isCamOn ? '<i class="bi bi-camera-video-fill"></i>' : '<i class="bi bi-camera-video-off-fill text-danger"></i>';
     });
 
     // --- CONTROL ADMINISTRATIVO FORZADO ---
@@ -484,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function actualizarVistaCuadricula() {
         const grid = document.getElementById('participants-grid');
+        if(!grid) return;
         const containers = Array.from(grid.querySelectorAll('.participant-container'));
         
         containers.sort((a, b) => {
@@ -526,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================================
-    // CORRECCIÓN 2: MOTOR WEBRTC DE MALLA PEER-TO-PEER (Para que los videos de los demás sí se envíen y se reciban)
+    // CORRECCIÓN 2: MOTOR WEBRTC DE MALLA PEER-TO-PEER
     // =========================================================================================
     const peerConnections = {};
     const rtcConfig = {
@@ -575,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Si somos nosotros los que iniciamos la llamada con esta persona (El nuevo que entra a la sala)
+        // Si somos nosotros los que iniciamos la llamada con esta persona
         if (isInitiator) {
             pc.createOffer()
                 .then(offer => pc.setLocalDescription(offer))
@@ -638,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('nuevo_participante_lobby', (p) => {
         if (p.user_id !== myId) {
             agregarCajitaParticipante(p);
-            showNotification(`${p.nombre} se unió a la clase.`, "info");
+            showNotification(`${escapeHTML(p.nombre)} se unió a la clase.`, "info");
         }
     });
 
@@ -652,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cajita = document.getElementById(`part-${p.user_id}`);
         if (cajita) {
             cajita.remove();
-            showNotification(`${p.nombre} salió de la sala.`, "warning");
+            showNotification(`${escapeHTML(p.nombre)} salió de la sala.`, "warning");
             
             const pinIdx = pinnedToGrid.indexOf(p.user_id);
             if(pinIdx > -1) pinnedToGrid.splice(pinIdx, 1);
@@ -667,15 +747,20 @@ document.addEventListener('DOMContentLoaded', () => {
         div.className = 'participant-container remote-participant mb-2';
         div.id = `part-${p.user_id}`;
         
+        const safeNombre = escapeHTML(p.nombre);
+        
         let menuAdmin = '';
         if(isAdmin) {
+            // Nota: Para los eventos de onClick inline pasamos el safeNombre ya parseado.
+            // NUEVO: Agregado "Asignar Presentador" al menú
             menuAdmin = `
                 <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
                     <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Controles de Admin" onclick="event.stopPropagation();">
                         <i class="bi bi-three-dots-vertical fs-5" style="filter: drop-shadow(0 0 2px black);"></i>
                     </button>
                     <ul class="dropdown-menu shadow-sm" style="font-size: 0.85rem;">
-                        <li><a class="dropdown-item fw-bold text-success" href="javascript:void(0);" onclick="fijarEscenario('${p.user_id}', '${p.nombre}')"><i class="bi bi-pin-angle-fill me-2"></i> Poner en Primera Plana (Global)</a></li>
+                        <li><a class="dropdown-item fw-bold text-success" href="javascript:void(0);" onclick="fijarEscenario('${p.user_id}', '${safeNombre}')"><i class="bi bi-pin-angle-fill me-2"></i> Poner en Primera Plana (Global)</a></li>
+                        <li><a class="dropdown-item fw-bold text-info" href="javascript:void(0);" onclick="asignarPresentador('${p.user_id}', '${safeNombre}')"><i class="bi bi-person-video3 me-2"></i> Asignar Presentador</a></li>
                         <li><a class="dropdown-item fw-bold text-warning" href="javascript:void(0);" onclick="toggleGridPin('${p.user_id}')"><i class="bi bi-star-fill me-2"></i> Destacar en lista (Estrella)</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="javascript:void(0);" onclick="accionIndividual('${p.user_id}', 'mic_off')"><i class="bi bi-mic-mute text-danger me-2"></i> Silenciar individual</a></li>
@@ -687,24 +772,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        // Elemento con evento de click para fijación LOCAL (Solo el usuario que hace click lo verá en grande)
+        // Elemento con evento de click para fijación LOCAL
         div.innerHTML = `
-            <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8);" onclick="aplicarFijarEscenario({user_id: '${p.user_id}', nombre: '${p.nombre}'})" title="Haz clic para ver a esta persona en grande">
+            <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8);" onclick="aplicarFijarEscenario({user_id: '${p.user_id}', nombre: '${safeNombre}'})" title="Haz clic para ver a esta persona en grande">
                 ${menuAdmin}
                 <!-- Inicia invisible (d-none) hasta que WebRTC ponga el video real de la persona -->
                 <video id="vid-${p.user_id}" class="w-100 h-100 position-absolute top-0 start-0 d-none" style="object-fit: cover; border-radius: 0.5rem;" autoplay playsinline></video>
                 <!-- Avatar Inicial -->
                 <div id="avatar-${p.user_id}" class="rounded-circle d-flex justify-content-center align-items-center mb-1 text-white fw-bold fs-3 shadow-sm" style="width: 50px; height: 50px; background: var(--accent-strong); z-index: 1;">
-                    ${p.nombre.charAt(0).toUpperCase()}
+                    ${safeNombre.charAt(0).toUpperCase()}
                 </div>
             </div>
-            <span class="participant-name shadow-sm z-3">${p.nombre}</span>
+            <span class="participant-name shadow-sm z-3">${safeNombre}</span>
         `;
         grid.appendChild(div);
         actualizarVistaCuadricula();
     }
 
-    // --- ACCIONES GLOBALES E INDIVIDUALES ADMIN ---
+    // --- ACCIONES GLOBALES E INDIVIDUALES ADMIN Y PRESENTADOR ---
     window.accionMasiva = function(tipo) {
         if(confirm(`¿Estás seguro de ejecutar esta acción masiva?`)) {
             socket.emit('admin_accion_masiva', { accion: tipo });
@@ -713,6 +798,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.accionIndividual = function(uid, tipo) {
         socket.emit('admin_accion_individual', { target_id: uid, accion: tipo });
     };
+    window.asignarPresentador = function(uid, nom) {
+        if(confirm(`¿Deseas asignar a ${nom} como Presentador de la sala?`)) {
+            socket.emit('admin_asignar_presentador', { user_id: uid, nombre: nom });
+        }
+    };
+
+    // Escuchar si me hicieron presentador
+    socket.on('nuevo_presentador', (data) => {
+        if (data.user_id === myId) {
+            isPresenter = true;
+            const uploadContainer = document.getElementById('btn-upload-mp4-container');
+            if(uploadContainer) uploadContainer.classList.remove('d-none');
+            showNotification("¡Has sido designado como Presentador! Ahora puedes proyectar archivos y cambiar vistas.", "success");
+        } else {
+            isPresenter = false;
+            const uploadContainer = document.getElementById('btn-upload-mp4-container');
+            if (!isAdmin && uploadContainer) uploadContainer.classList.add('d-none');
+            showNotification(`${escapeHTML(data.nombre)} es ahora el Presentador principal.`, "info");
+        }
+        aplicarFijarEscenario(data); // Fija al nuevo presentador en la pantalla grande
+    });
+
 
     // --- SISTEMA DE TURNOS (MANO) ---
     btnMano.addEventListener('click', () => {
@@ -739,34 +846,75 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         cola.forEach((u, idx) => {
+            const safeNombre = escapeHTML(u.nombre);
             const btnBajar = isAdmin ? `<button class="btn btn-sm btn-link text-danger p-0 ms-auto" title="Bajar Mano" onclick="bajarManoAdmin('${u.user_id}')"><i class="bi bi-hand-thumbs-down-fill"></i></button>` : '';
             listaTurnos.innerHTML += `
                 <li class="list-group-item d-flex align-items-center py-2 px-1 border-0 border-bottom">
                     <span class="badge bg-warning text-dark me-2 rounded-circle">${idx + 1}</span>
-                    <span class="fw-medium text-truncate" style="max-width: 140px;">${u.nombre}</span>
+                    <span class="fw-medium text-truncate" style="max-width: 140px;">${safeNombre}</span>
                     ${btnBajar}
                 </li>`;
         });
     });
 
-    // --- LÓGICA DE LAS 6 VISTAS Y PRIMERA PLANA (FIJAR PERSONAS) ---
-    let layouts = ['layout-1', 'layout-2', 'layout-3', 'layout-4', 'layout-5', 'layout-6'];
+    // --- LÓGICA DE LAS 7 VISTAS (NUEVA VISTA GALERÍA) Y SINCRONIZACIÓN ---
+    let layouts = ['layout-1', 'layout-2', 'layout-3', 'layout-4', 'layout-5', 'layout-6', 'layout-7'];
     let layoutNames = [
         'Foco Persona (Admin y Pizarra abajo)', 
         'Foco Pizarra (Admin y Persona abajo)', 
         'Mitades (Persona y Pizarra)', 
         'Solo Persona', 
         'Solo Pizarra', 
-        'Trío (Admin, Pizarra, Presentador)'
+        'Trío (Admin, Pizarra, Presentador)',
+        'Galería (Todos los contactos)'
     ];
     let currentLayout = 1; // Inicia en layout-2 (Foco Pizarra)
     const stageWrapper = document.getElementById('main-stage-wrapper');
+    const layoutIndicator = document.getElementById('layout-indicator-container');
+    const layoutNameDisplay = document.getElementById('layout-name-display');
+
+    function aplicarLayoutEnPantalla(index) {
+        stageWrapper.className = `stage-wrapper shadow-sm border ${layouts[index]} mb-3`;
+        
+        if (layoutNameDisplay) layoutNameDisplay.innerText = layoutNames[index];
+        if (layoutIndicator) layoutIndicator.classList.remove('d-none');
+
+        // Lógica especial para Vista 7 (Galería)
+        const gridElement = document.getElementById('participants-grid');
+        const gridHostSidebar = document.getElementById('grid-host-sidebar');
+        const gridHostMain = document.getElementById('grid-host-main');
+        
+        if (gridElement && gridHostSidebar && gridHostMain) {
+            if (layouts[index] === 'layout-7') {
+                // Mueve la cuadrícula a la pantalla grande
+                gridHostMain.appendChild(gridElement);
+            } else {
+                // Devuelve la cuadrícula al panel lateral
+                gridHostSidebar.appendChild(gridElement);
+            }
+        }
+    }
 
     document.getElementById('btn-toggle-layout').addEventListener('click', () => {
-        stageWrapper.classList.remove(layouts[currentLayout]);
         currentLayout = (currentLayout + 1) % layouts.length;
-        stageWrapper.classList.add(layouts[currentLayout]);
-        showNotification("Vista cambiada a: " + layoutNames[currentLayout], "info");
+        aplicarLayoutEnPantalla(currentLayout);
+        
+        // Si soy admin o presentador, fuerzo el cambio en todos los usuarios
+        if(isAdmin || isPresenter) {
+            socket.emit('admin_sync_layout', { layoutIndex: currentLayout });
+            showNotification("Vista sincronizada para todos: " + layoutNames[currentLayout], "success");
+        } else {
+            showNotification("Vista local cambiada a: " + layoutNames[currentLayout], "info");
+        }
+    });
+
+    // Escuchar sincronización forzada por el admin/presentador
+    socket.on('force_sync_layout', (data) => {
+        if(!isAdmin && !isPresenter) { 
+            currentLayout = data.layoutIndex;
+            aplicarLayoutEnPantalla(currentLayout);
+            showNotification("La administración cambió la vista a: " + layoutNames[currentLayout], "info");
+        }
     });
 
     // CORRECCIÓN 3: Reconstrucción estructurada y segura del video para inyectar correctamente en la pantalla grande
@@ -789,8 +937,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpiamos totalmente lo que había antes
         speakerLayer.innerHTML = '';
 
+        const safeNombre = escapeHTML(data.nombre);
+
         if (streamToShow) {
-            // Construimos el elemento de video directamente desde JavaScript (Más seguro y robusto para media streams)
+            // Construimos el elemento de video directamente desde JavaScript
             const newVideo = document.createElement('video');
             newVideo.id = 'main-speaker-video';
             newVideo.className = 'w-100 h-100 shadow';
@@ -798,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newVideo.autoplay = true;
             newVideo.playsInline = true;
             
-            // Si me pongo en pantalla grande, me muestro en modo espejo y en silencio (para no crear eco en mis parlantes)
+            // Si me pongo en pantalla grande, me muestro en modo espejo y en silencio
             if (isMe) {
                 newVideo.style.transform = 'scaleX(-1)';
                 newVideo.muted = true;
@@ -808,7 +958,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const labelDiv = document.createElement('div');
             labelDiv.className = 'position-absolute bottom-0 start-0 p-2 text-white bg-dark bg-opacity-75 w-100 fw-bold text-center text-truncate';
             labelDiv.style.zIndex = '5';
-            labelDiv.innerHTML = `<i class="bi bi-mic-fill text-success me-1"></i> ${data.nombre}`;
+            labelDiv.innerHTML = `<i class="bi bi-mic-fill text-success me-1"></i> ${safeNombre}`;
 
             // Inyectamos el DOM e inyectamos el canal de video
             speakerLayer.appendChild(newVideo);
@@ -823,22 +973,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Fallback elegante en caso de que la persona no tenga su cámara encendida todavía
             speakerLayer.innerHTML = `
                 <div class="avatar-giant shadow w-100 h-100 d-flex justify-content-center align-items-center" style="font-size: 6rem; background: var(--accent-strong); color: white;">
-                    ${data.nombre ? data.nombre.charAt(0).toUpperCase() : '?'}
+                    ${safeNombre ? safeNombre.charAt(0).toUpperCase() : '?'}
                 </div>
                 <div class="position-absolute bottom-0 start-0 p-2 text-white bg-dark bg-opacity-75 w-100 fw-bold text-center text-truncate" style="z-index: 5;">
-                    <i class="bi bi-mic-fill text-secondary me-1"></i> ${data.nombre} (Sin cámara)
+                    <i class="bi bi-mic-fill text-secondary me-1"></i> ${safeNombre} (Sin cámara)
                 </div>
             `;
         }
     };
 
-    // Esta función EMITE la orden para que TODOS fijen a esta persona (Solo por menús de Admin)
+    // Esta función EMITE la orden para que TODOS fijen a esta persona
     window.fijarEscenario = function(uid, nom) {
         socket.emit('fijar_escenario', { user_id: uid, nombre: nom });
         aplicarFijarEscenario({ user_id: uid, nombre: nom }); // Aplicar local también de forma inmediata
     };
 
-    // Alguien (Administrador) solicitó que TODOS vean a cierta persona
+    // Alguien solicitó que TODOS vean a cierta persona
     socket.on('actualizar_escenario', (data) => {
         aplicarFijarEscenario(data);
     });
@@ -864,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     socket.on('recibir_mp4', (data) => {
-        showNotification(`${data.emisor} proyectó un archivo.`, "info");
+        showNotification(`${escapeHTML(data.emisor)} proyectó un archivo.`, "info");
         
         const urlLower = data.url.toLowerCase();
         let htmlViewer = '';
@@ -887,10 +1037,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         layerMedia.innerHTML = htmlViewer;
         
-        // Forzar cambio al Layout 2 (Pizarra Grande, Administrador y Presentador abajo)
-        stageWrapper.classList.remove(layouts[currentLayout]);
-        currentLayout = 1; // 1 es el índice para 'layout-2'
-        stageWrapper.classList.add(layouts[currentLayout]);
+        // Forzar cambio al Layout 2 cuando se proyecta un archivo (para que sea visible)
+        currentLayout = 1; // índice de layout-2
+        aplicarLayoutEnPantalla(currentLayout);
     });
 
     // Compartir archivos en la lista de Materiales
@@ -945,6 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         lista.forEach(m => {
+            const safeNombre = escapeHTML(m.nombre);
+            const safeRemitente = escapeHTML(m.remitente);
+
             const icon = m.tipo === 'link' ? 'bi-link-45deg text-primary' : 'bi-file-earmark-check-fill text-success';
             const actionBtn = m.tipo === 'link' 
                 ? `<a href="${m.url}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm"><i class="bi bi-box-arrow-up-right"></i> Abrir</a>`
@@ -954,8 +1106,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             tablaMateriales.innerHTML += `
                 <tr>
-                    <td><i class="bi ${icon} fs-5 me-2"></i> <span class="fw-medium text-break" style="max-width: 200px; display: inline-block;">${m.nombre}</span></td>
-                    <td class="text-muted small">${m.remitente}</td>
+                    <td><i class="bi ${icon} fs-5 me-2"></i> <span class="fw-medium text-break" style="max-width: 200px; display: inline-block;">${safeNombre}</span></td>
+                    <td class="text-muted small">${safeRemitente}</td>
                     <td><span class="badge bg-secondary opacity-75">${m.peso}</span></td>
                     <td class="text-end text-nowrap">${actionBtn}${btnDel}</td>
                 </tr>
