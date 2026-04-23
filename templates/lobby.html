@@ -96,12 +96,10 @@
     /* Layout 1: Foco en Persona (Persona Grande, Admin Abajo-Izq, Pizarra Abajo-Der) */
     .layout-1 .layer-speaker { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; border: none; border-radius: 0; }
     .layout-1 .layer-media { width: 20%; aspect-ratio: 16/9; height: auto; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
-    /* Corrección Proporción 1:1 solicitada para los avatares */
     .layout-1 .layer-admin { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
     
     /* Layout 2: Foco en Pizarra (Pizarra Grande, Admin Abajo-Izq, Persona Abajo-Der) */
     .layout-2 .layer-media { width: 100%; height: 100%; top: 0; left: 0; z-index: 1; }
-    /* Corrección Proporción 1:1 solicitada para los avatares */
     .layout-2 .layer-speaker { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; right: 20px; z-index: 2; border: 3px solid var(--accent-strong); border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
     .layout-2 .layer-admin { width: 15%; aspect-ratio: 1/1; height: auto; bottom: 85px; left: 20px; z-index: 2; border: 3px solid #ffc107; border-radius: 10px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); overflow: hidden; background: #000; }
     
@@ -221,7 +219,8 @@
 
                 <!-- CONTROLES FLOTANTES -->
                 <div class="position-absolute bottom-0 start-50 translate-middle-x w-100 p-3" style="background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); z-index: 10;">
-                    <div class="d-flex justify-content-center gap-3 align-items-end">
+                    <!-- Ajuste flex-wrap y gap para que no se desborde en móviles -->
+                    <div class="d-flex justify-content-center gap-2 gap-md-3 align-items-end flex-wrap">
                         <button id="btn-mic" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Micrófono">
                             <i class="bi bi-mic-fill"></i>
                         </button>
@@ -233,7 +232,21 @@
                             <i class="bi bi-hand-index-thumb-fill text-warning"></i>
                         </button>
 
-                        <!-- NUEVO BOTÓN ALTERNAR VISTA AQUÍ ADENTRO -->
+                        <!-- BOTÓN DE CHAT OFFCANVAS -->
+                        <div class="position-relative">
+                            <button id="btn-toggle-chat" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" data-bs-toggle="offcanvas" data-bs-target="#chatOffcanvas" title="Chat de la Sala">
+                                <i class="bi bi-chat-dots-fill text-light"></i>
+                            </button>
+                            <span id="chat-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light d-none" style="font-size: 0.7rem; padding: 0.35em 0.5em;">
+                                0
+                            </span>
+                        </div>
+
+                        <!-- BOTÓN DE FOTO DE GRUPO (Aparece dinámico en la Galería) -->
+                        <button id="btn-foto-grupo" class="btn btn-info rounded-circle shadow border border-secondary floating-btn d-none" title="Tomar Foto de Grupo">
+                            <i class="bi bi-camera-fill text-white"></i>
+                        </button>
+
                         <button id="btn-toggle-layout" class="btn btn-dark rounded-circle shadow border border-secondary floating-btn" title="Alternar Vista">
                             <i class="bi bi-layout-split text-info"></i>
                         </button>
@@ -313,7 +326,7 @@
             <div class="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column">
                 <h6 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-people-fill text-primary"></i> Participantes</h6>
                 
-                <!-- NUEVO: Buscador en Vivo -->
+                <!-- Buscador en Vivo -->
                 <div class="mb-3">
                     <input type="text" id="buscar-participante" class="form-control form-control-sm rounded-pill bg-light border-secondary" placeholder="🔍 Buscar contacto...">
                 </div>
@@ -349,6 +362,47 @@
     </div>
 </div>
 
+<!-- NUEVO: Offcanvas para el Chat de la Sala -->
+<div class="offcanvas offcanvas-end shadow-lg" tabindex="-1" id="chatOffcanvas" aria-labelledby="chatOffcanvasLabel" style="width: 380px; border-left: 1px solid var(--accent-strong); z-index: 9999;">
+    <div class="offcanvas-header bg-light border-bottom">
+        <h5 class="offcanvas-title fw-bold text-dark" id="chatOffcanvasLabel">
+            <i class="bi bi-chat-dots-fill text-primary me-2"></i> Chat de la Sala
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-0 bg-white">
+        <div id="lobby-chat-messages" class="flex-grow-1 p-3 overflow-auto" style="background: #f8f9fa;">
+            <div class="text-center text-muted small my-3">
+                <i class="bi bi-shield-lock-fill text-success"></i> Los mensajes son temporales y no se guardan fuera de esta sesión.
+            </div>
+            <!-- Mensajes JS -->
+        </div>
+        <div class="p-3 border-top bg-light">
+            <div id="lobby-chat-upload-progress" class="text-info small fw-bold d-none mb-2 text-center">
+                <div class="spinner-border spinner-border-sm me-1"></div> Subiendo archivo al chat...
+            </div>
+            
+            <!-- NUEVO: Previsualización del archivo adjunto antes de enviar -->
+            <div id="lobby-chat-file-preview" class="d-none badge bg-primary text-wrap text-start mb-2 p-2 shadow-sm" style="max-width: 100%;"></div>
+            
+            <form id="form-lobby-chat" class="m-0 d-flex gap-2 align-items-center">
+                <!-- Botón de Adjuntar Archivo -->
+                <label class="btn btn-secondary rounded-circle shadow-sm d-flex justify-content-center align-items-center mb-0" style="width: 45px; height: 45px; flex-shrink: 0; cursor: pointer;" title="Adjuntar Archivo">
+                    <i class="bi bi-paperclip fs-5 text-white"></i>
+                    <input type="file" id="lobby-chat-file" class="d-none" accept=".mp3,.wav,.png,.jpg,.jpeg,.gif,.txt,.pdf,.docx,.pptx,.xls,.xlsx">
+                </label>
+                
+                <!-- CORRECCIÓN DE COLOR DE TEXTO: Forzando text-dark y fw-medium de Bootstrap -->
+                <input type="text" id="lobby-chat-input" class="form-control rounded-pill border-secondary fw-bold" style="background-color: #ffffff !important; color: #000000 !important;" placeholder="Escribe o Emojis (Win + .)" autocomplete="off">
+                
+                <button type="submit" class="btn btn-primary rounded-circle shadow-sm d-flex justify-content-center align-items-center" style="width: 45px; height: 45px; flex-shrink: 0;">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Generar Invitación -->
 <div class="modal fade" id="modalInvitacion" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -379,7 +433,8 @@
 </div>
 
 <!-- Contenedor para Notificaciones (Toasts) -->
-<div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+<!-- CORRECCIÓN: Movido a la parte SUPERIOR DERECHA (top-0 end-0) con margen superior para que no tape el botón de enviar del chat -->
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10550; margin-top: 70px;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
 <script>
@@ -427,6 +482,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadProgress = document.getElementById('upload-progress');
     const tablaMateriales = document.getElementById('tabla-materiales');
     const listaTurnos = document.getElementById('lista-turnos');
+    const btnFotoGrupo = document.getElementById('btn-foto-grupo');
+
+    // NUEVAS CONSTANTES DEL CHAT
+    const formLobbyChat = document.getElementById('form-lobby-chat');
+    const inputLobbyChat = document.getElementById('lobby-chat-input');
+    const messagesLobbyChat = document.getElementById('lobby-chat-messages');
+    const chatBadge = document.getElementById('chat-badge');
+    const chatOffcanvas = document.getElementById('chatOffcanvas');
+    const fileLobbyChat = document.getElementById('lobby-chat-file');
+    const progressLobbyChat = document.getElementById('lobby-chat-upload-progress');
+    const previewLobbyChat = document.getElementById('lobby-chat-file-preview'); // NUEVO
+    let unreadMessagesCount = 0; // NUEVO: Contador global de mensajes no leídos
 
     let localStream = null;
     let isMicOn = true;
@@ -434,13 +501,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let miManoLevantada = false;
     let pinnedToGrid = []; // Estrellas fijadas
 
-    // NUEVO: Lógica del Buscador en Vivo
+    // Buscador en Vivo
     const searchInput = document.getElementById('buscar-participante');
     if(searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            document.querySelectorAll('#participants-grid .participant-container').forEach(p => {
-                if(p.id === 'local-participant-container') return; // Excluye "Yo" de la búsqueda si quieres, o quita esta línea.
+            document.querySelectorAll('.participant-container').forEach(p => {
+                if(p.id === 'local-participant-container') return; 
                 const nameEl = p.querySelector('.participant-name');
                 if (nameEl) {
                     const name = nameEl.innerText.toLowerCase();
@@ -478,7 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
         newToastEl.addEventListener('hidden.bs.toast', () => newToastEl.remove());
     };
 
-    // --- FORMATO DE TAMAÑO ---
     function formatBytes(bytes) {
         if(bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -498,12 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
             
-            // CORRECCIÓN 1: Enlazar el clic local a la función de fijado para que uno mismo se pueda poner en la pizarra
             localVideo.onclick = () => {
                 aplicarFijarEscenario({ user_id: myId, nombre: myName });
             };
 
-            // Si el usuario es administrador o superusuario, inyectar su cámara en el panel izquierdo de administrador
             if (isAdmin) {
                 const adminVid = document.getElementById('admin-local-video');
                 if (adminVid) adminVid.srcObject = localStream;
@@ -544,7 +608,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- GESTIÓN DE ESTRELLAS Y ORDEN EN CUADRÍCULA ---
     window.toggleGridPin = function(uid) {
         const idx = pinnedToGrid.indexOf(uid);
         if(idx > -1) {
@@ -606,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================================
-    // CORRECCIÓN 2: MOTOR WEBRTC DE MALLA PEER-TO-PEER
+    // MOTOR WEBRTC DE MALLA PEER-TO-PEER
     // =========================================================================================
     const peerConnections = {};
     const rtcConfig = {
@@ -622,12 +685,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const pc = new RTCPeerConnection(rtcConfig);
         peerConnections[userId] = pc;
 
-        // Añadir nuestra cámara local para que la vea la otra persona
         if (localStream) {
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         }
 
-        // Cuando recibimos el video de la persona remota
         pc.ontrack = (event) => {
             const remoteVid = document.getElementById(`vid-${userId}`);
             const avatarDiv = document.getElementById(`avatar-${userId}`);
@@ -636,15 +697,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 remoteVid.srcObject = event.streams[0];
                 remoteVid.classList.remove('d-none');
                 
-                // Aseguramos que el video remoto inicie automáticamente
                 remoteVid.play().catch(e => console.log("Video autoplay prevenido:", e));
 
-                // Ocultar el círculo del Avatar si ya tenemos el video real
                 if (avatarDiv) avatarDiv.classList.add('d-none');
             }
         };
 
-        // Encontrar la ruta más rápida de conexión
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit('webrtc_signal', {
@@ -655,7 +713,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Si somos nosotros los que iniciamos la llamada con esta persona
         if (isInitiator) {
             pc.createOffer()
                 .then(offer => pc.setLocalDescription(offer))
@@ -672,9 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return pc;
     }
 
-    // Receptor de todas las señales WebRTC para negociar el video
     socket.on('webrtc_signal', async (data) => {
-        // Solo aceptar si la señal es para nosotros
         if (data.to !== myId) return;
 
         const userId = data.from;
@@ -702,13 +757,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- PARTICIPANTES Y CAJITAS ---
     socket.on('lista_participantes_lobby', (lista) => {
         document.querySelectorAll('.remote-participant').forEach(el => el.remove());
         lista.forEach(participante => {
             if (participante.user_id !== myId) {
                 agregarCajitaParticipante(participante);
-                // Conectar WebRTC con todos los que ya estaban en la sala
                 initWebRTC(participante.user_id, true);
             }
         });
@@ -723,7 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('participante_salio_lobby', (p) => {
-        // Cerrar su conexión de video WebRTC para ahorrar memoria
         if (peerConnections[p.user_id]) {
             peerConnections[p.user_id].close();
             delete peerConnections[p.user_id];
@@ -751,8 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let menuAdmin = '';
         if(isAdmin) {
-            // Nota: Para los eventos de onClick inline pasamos el safeNombre ya parseado.
-            // NUEVO: Agregado "Asignar Presentador" al menú
             menuAdmin = `
                 <div class="dropdown position-absolute top-0 end-0 p-1 z-3">
                     <button class="btn btn-sm btn-link text-white shadow-none opacity-75" data-bs-toggle="dropdown" title="Controles de Admin" onclick="event.stopPropagation();">
@@ -772,13 +822,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        // Elemento con evento de click para fijación LOCAL
         div.innerHTML = `
             <div class="video-participant position-relative d-flex flex-column justify-content-center align-items-center shadow" style="background: rgba(0,0,0,0.8);" onclick="aplicarFijarEscenario({user_id: '${p.user_id}', nombre: '${safeNombre}'})" title="Haz clic para ver a esta persona en grande">
                 ${menuAdmin}
-                <!-- Inicia invisible (d-none) hasta que WebRTC ponga el video real de la persona -->
                 <video id="vid-${p.user_id}" class="w-100 h-100 position-absolute top-0 start-0 d-none" style="object-fit: cover; border-radius: 0.5rem;" autoplay playsinline></video>
-                <!-- Avatar Inicial -->
                 <div id="avatar-${p.user_id}" class="rounded-circle d-flex justify-content-center align-items-center mb-1 text-white fw-bold fs-3 shadow-sm" style="width: 50px; height: 50px; background: var(--accent-strong); z-index: 1;">
                     ${safeNombre.charAt(0).toUpperCase()}
                 </div>
@@ -789,7 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
         actualizarVistaCuadricula();
     }
 
-    // --- ACCIONES GLOBALES E INDIVIDUALES ADMIN Y PRESENTADOR ---
     window.accionMasiva = function(tipo) {
         if(confirm(`¿Estás seguro de ejecutar esta acción masiva?`)) {
             socket.emit('admin_accion_masiva', { accion: tipo });
@@ -804,7 +850,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Escuchar si me hicieron presentador
     socket.on('nuevo_presentador', (data) => {
         if (data.user_id === myId) {
             isPresenter = true;
@@ -817,11 +862,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isAdmin && uploadContainer) uploadContainer.classList.add('d-none');
             showNotification(`${escapeHTML(data.nombre)} es ahora el Presentador principal.`, "info");
         }
-        aplicarFijarEscenario(data); // Fija al nuevo presentador en la pantalla grande
+        aplicarFijarEscenario(data);
+        aplicarLayoutEnPantalla(currentLayout); // Actualiza si debe ver el boton de cámara
     });
 
-
-    // --- SISTEMA DE TURNOS (MANO) ---
     btnMano.addEventListener('click', () => {
         miManoLevantada = !miManoLevantada;
         if(miManoLevantada) {
@@ -857,7 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- LÓGICA DE LAS 7 VISTAS (NUEVA VISTA GALERÍA) Y SINCRONIZACIÓN ---
+    // --- LÓGICA DE LAS 7 VISTAS Y FOTO DE GALERÍA ---
     let layouts = ['layout-1', 'layout-2', 'layout-3', 'layout-4', 'layout-5', 'layout-6', 'layout-7'];
     let layoutNames = [
         'Foco Persona (Admin y Pizarra abajo)', 
@@ -868,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'Trío (Admin, Pizarra, Presentador)',
         'Galería (Todos los contactos)'
     ];
-    let currentLayout = 1; // Inicia en layout-2 (Foco Pizarra)
+    let currentLayout = 1; 
     const stageWrapper = document.getElementById('main-stage-wrapper');
     const layoutIndicator = document.getElementById('layout-indicator-container');
     const layoutNameDisplay = document.getElementById('layout-name-display');
@@ -879,18 +923,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (layoutNameDisplay) layoutNameDisplay.innerText = layoutNames[index];
         if (layoutIndicator) layoutIndicator.classList.remove('d-none');
 
-        // Lógica especial para Vista 7 (Galería)
         const gridElement = document.getElementById('participants-grid');
         const gridHostSidebar = document.getElementById('grid-host-sidebar');
         const gridHostMain = document.getElementById('grid-host-main');
+        const btnFoto = document.getElementById('btn-foto-grupo');
         
         if (gridElement && gridHostSidebar && gridHostMain) {
             if (layouts[index] === 'layout-7') {
-                // Mueve la cuadrícula a la pantalla grande
                 gridHostMain.appendChild(gridElement);
+                // Mostrar botón de cámara solo si es galería y somos admin o presentador
+                if(btnFoto && (isAdmin || isPresenter)) btnFoto.classList.remove('d-none');
             } else {
-                // Devuelve la cuadrícula al panel lateral
                 gridHostSidebar.appendChild(gridElement);
+                // Ocultar cámara
+                if(btnFoto) btnFoto.classList.add('d-none');
             }
         }
     }
@@ -899,7 +945,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentLayout = (currentLayout + 1) % layouts.length;
         aplicarLayoutEnPantalla(currentLayout);
         
-        // Si soy admin o presentador, fuerzo el cambio en todos los usuarios
         if(isAdmin || isPresenter) {
             socket.emit('admin_sync_layout', { layoutIndex: currentLayout });
             showNotification("Vista sincronizada para todos: " + layoutNames[currentLayout], "success");
@@ -908,7 +953,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Escuchar sincronización forzada por el admin/presentador
     socket.on('force_sync_layout', (data) => {
         if(!isAdmin && !isPresenter) { 
             currentLayout = data.layoutIndex;
@@ -917,16 +961,142 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // CORRECCIÓN 3: Reconstrucción estructurada y segura del video para inyectar correctamente en la pantalla grande
+    // ==========================================
+    // NUEVA FUNCIONALIDAD: TOMAR FOTO DE GRUPO
+    // ==========================================
+    if (btnFotoGrupo) {
+        btnFotoGrupo.addEventListener('click', async () => {
+            // SOLUCIÓN: Buscamos absolutamente a todos los participantes en el DOM para que nadie falte
+            const containers = Array.from(document.querySelectorAll('.participant-container'))
+                                    .filter(c => window.getComputedStyle(c).display !== 'none');
+                                    
+            if (containers.length === 0) return showNotification("No hay participantes visibles para la foto.", "warning");
+
+            showNotification("📸 Capturando foto de grupo, ¡sonrían!...", "info");
+
+            // Calcular resolución base y cuadrícula inteligente
+            const cols = Math.ceil(Math.sqrt(containers.length));
+            const rows = Math.ceil(containers.length / cols);
+            const vidWidth = 640;
+            const vidHeight = 480;
+            const headerHeight = 80;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = cols * vidWidth;
+            // El alto suma el encabezado para poner un título conmemorativo
+            canvas.height = (rows * vidHeight) + headerHeight; 
+            const ctx = canvas.getContext('2d');
+
+            // Dibujar fondo oscuro de la foto general
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Marco conmemorativo superior
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('📸 Foto de Grupo - ' + new Date().toLocaleDateString(), canvas.width / 2, headerHeight / 2);
+
+            // Iterar CADA cámara globalmente
+            containers.forEach((container, index) => {
+                const vid = container.querySelector('video');
+                const nameEl = container.querySelector('.participant-name');
+                const name = nameEl ? nameEl.innerText : 'Invitado';
+
+                const x = (index % cols) * vidWidth;
+                const y = Math.floor(index / cols) * vidHeight + headerHeight;
+
+                // Verificamos de forma segura si el video realmente está reproduciendo contenido
+                const hasVideo = vid && vid.readyState >= 2 && vid.videoWidth > 0;
+
+                if (hasVideo) {
+                    // Simular un object-fit: cover real en el canvas para que no se deformen las caras
+                    const aspectCanvas = vidWidth / vidHeight;
+                    const aspectVideo = vid.videoWidth / vid.videoHeight;
+                    let sx, sy, sWidth, sHeight;
+                    
+                    if (aspectVideo > aspectCanvas) {
+                        sHeight = vid.videoHeight;
+                        sWidth = sHeight * aspectCanvas;
+                        sx = (vid.videoWidth - sWidth) / 2;
+                        sy = 0;
+                    } else {
+                        sWidth = vid.videoWidth;
+                        sHeight = sWidth / aspectCanvas;
+                        sx = 0;
+                        sy = (vid.videoHeight - sHeight) / 2;
+                    }
+
+                    ctx.save();
+                    // Prevenir que la cámara local salga invertida (modo espejo) para los demás
+                    if (vid.style.transform === 'scaleX(-1)') {
+                        ctx.translate(x + vidWidth, y);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(vid, sx, sy, sWidth, sHeight, 0, 0, vidWidth, vidHeight);
+                    } else {
+                        ctx.drawImage(vid, sx, sy, sWidth, sHeight, x, y, vidWidth, vidHeight);
+                    }
+                    ctx.restore();
+                } else {
+                    // Si el usuario tiene cámara apagada o falló su conexión, asegurar su caja con su Avatar
+                    ctx.fillStyle = '#212529';
+                    ctx.fillRect(x, y, vidWidth, vidHeight);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 100px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(name.charAt(0).toUpperCase(), x + vidWidth/2, y + vidHeight/2);
+                }
+
+                // Dibujar la etiqueta de nombre translúcida en la parte inferior de cada persona
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(x, y + vidHeight - 50, vidWidth, 50);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(name, x + 20, y + vidHeight - 25);
+                
+                // Dibujar bordes finos entre las personas
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(x, y, vidWidth, vidHeight);
+            });
+
+            // Convertir la imagen capturada a un blob PNG seguro
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'Foto_de_Grupo.png');
+
+                try {
+                    const res = await fetch('/api/upload_file', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    
+                    if (res.ok && data.url) {
+                        socket.emit('compartir_material', {
+                            nombre: '📸 Foto de Grupo (' + new Date().toLocaleTimeString() + ')',
+                            url: data.url,
+                            peso: formatBytes(blob.size),
+                            remitente: myName,
+                            tipo: 'file'
+                        });
+                        showNotification("¡Foto de todo el equipo guardada! Se agregó a los Materiales.", "success");
+                    } else throw new Error(data.error);
+                } catch (err) {
+                    showNotification("Error al guardar la foto: " + err.message, "error");
+                }
+            }, 'image/png');
+        });
+    }
+
     window.aplicarFijarEscenario = function(data) {
         let streamToShow = null;
         let isMe = (data.user_id === myId);
 
-        // Si soy yo el fijado, busco mi stream local directo
         if (isMe) {
             streamToShow = localStream;
         } else {
-            // Si fijamos a alguien más, busca el video remoto que existe en su cajita de la lista
             const remoteVid = document.getElementById(`vid-${data.user_id}`);
             if (remoteVid && remoteVid.srcObject) {
                 streamToShow = remoteVid.srcObject;
@@ -934,13 +1104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const speakerLayer = document.getElementById('layer-speaker');
-        // Limpiamos totalmente lo que había antes
         speakerLayer.innerHTML = '';
 
         const safeNombre = escapeHTML(data.nombre);
 
         if (streamToShow) {
-            // Construimos el elemento de video directamente desde JavaScript
             const newVideo = document.createElement('video');
             newVideo.id = 'main-speaker-video';
             newVideo.className = 'w-100 h-100 shadow';
@@ -948,29 +1116,23 @@ document.addEventListener('DOMContentLoaded', () => {
             newVideo.autoplay = true;
             newVideo.playsInline = true;
             
-            // Si me pongo en pantalla grande, me muestro en modo espejo y en silencio
             if (isMe) {
                 newVideo.style.transform = 'scaleX(-1)';
                 newVideo.muted = true;
             }
 
-            // Construimos la etiqueta con el nombre del presentador en grande
             const labelDiv = document.createElement('div');
             labelDiv.className = 'position-absolute bottom-0 start-0 p-2 text-white bg-dark bg-opacity-75 w-100 fw-bold text-center text-truncate';
             labelDiv.style.zIndex = '5';
             labelDiv.innerHTML = `<i class="bi bi-mic-fill text-success me-1"></i> ${safeNombre}`;
 
-            // Inyectamos el DOM e inyectamos el canal de video
             speakerLayer.appendChild(newVideo);
             speakerLayer.appendChild(labelDiv);
             
             newVideo.srcObject = streamToShow;
-            
-            // Forzamos al navegador a darle play en caso de que lo haya bloqueado el sistema
             newVideo.play().catch(e => console.warn("Play automático requerido interactuar:", e));
             
         } else {
-            // Fallback elegante en caso de que la persona no tenga su cámara encendida todavía
             speakerLayer.innerHTML = `
                 <div class="avatar-giant shadow w-100 h-100 d-flex justify-content-center align-items-center" style="font-size: 6rem; background: var(--accent-strong); color: white;">
                     ${safeNombre ? safeNombre.charAt(0).toUpperCase() : '?'}
@@ -982,18 +1144,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Esta función EMITE la orden para que TODOS fijen a esta persona
     window.fijarEscenario = function(uid, nom) {
         socket.emit('fijar_escenario', { user_id: uid, nombre: nom });
-        aplicarFijarEscenario({ user_id: uid, nombre: nom }); // Aplicar local también de forma inmediata
+        aplicarFijarEscenario({ user_id: uid, nombre: nom }); 
     };
 
-    // Alguien solicitó que TODOS vean a cierta persona
     socket.on('actualizar_escenario', (data) => {
         aplicarFijarEscenario(data);
     });
 
-    // --- GESTIÓN DE PROYECCIÓN MULTIFORMATO Y MATERIALES ---
     if(btnUploadMp4) {
         btnUploadMp4.addEventListener('click', () => fileMp4.click());
         fileMp4.addEventListener('change', async function() {
@@ -1019,7 +1178,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const urlLower = data.url.toLowerCase();
         let htmlViewer = '';
         
-        // Renderizado según tipo de documento (Visor Múltiple)
         if (urlLower.match(/\.(mp4|webm|ogg)(\?.*)?$/)) {
             htmlViewer = `<video src="${data.url}" controls autoplay class="main-stage-video"></video>`;
         } else if (urlLower.match(/\.(mp3|wav)(\?.*)?$/)) {
@@ -1037,12 +1195,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         layerMedia.innerHTML = htmlViewer;
         
-        // Forzar cambio al Layout 2 cuando se proyecta un archivo (para que sea visible)
         currentLayout = 1; // índice de layout-2
         aplicarLayoutEnPantalla(currentLayout);
     });
 
-    // Compartir archivos en la lista de Materiales
     if(fileMateriales) {
         fileMateriales.addEventListener('change', async function() {
             const file = this.files[0];
@@ -1115,7 +1271,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- LLAVES DE SESIÓN Y EXPULSIÓN ---
     const btnCrearInv = document.getElementById('btn-crear-invitacion');
     if(btnCrearInv) {
         btnCrearInv.addEventListener('click', async () => {
@@ -1172,6 +1327,128 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { window.location.href = '/chat'; }, 2000);
         }
     });
+
+    // ==========================================
+    // NUEVA FUNCIONALIDAD: CHAT DE LA SALA OFFCANVAS (CON SUBIDA DE ARCHIVOS Y CONTADOR)
+    // ==========================================
+    if (chatOffcanvas) {
+        chatOffcanvas.addEventListener('show.bs.offcanvas', () => {
+            if(chatBadge) {
+                chatBadge.classList.add('d-none'); // Quita el indicador al abrir el chat
+                chatBadge.innerText = '0';
+            }
+            unreadMessagesCount = 0;
+        });
+    }
+
+    if (fileLobbyChat) {
+        fileLobbyChat.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                if (previewLobbyChat) {
+                    previewLobbyChat.innerText = `📎 Listo para enviar: ${this.files[0].name}`;
+                    previewLobbyChat.classList.remove('d-none');
+                }
+                showNotification(`📎 Archivo adjuntado. Presiona la flecha para enviarlo al chat.`, 'info');
+            } else {
+                if (previewLobbyChat) previewLobbyChat.classList.add('d-none');
+            }
+        });
+    }
+
+    if (formLobbyChat) {
+        formLobbyChat.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = inputLobbyChat.value.trim();
+            const file = fileLobbyChat.files[0];
+
+            if (!msg && !file) return;
+
+            const payload = { remitente: myName, texto: msg };
+
+            // Lógica para enviar el archivo si se adjuntó alguno
+            if (file) {
+                progressLobbyChat.classList.remove('d-none');
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const res = await fetch('/api/upload_file', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (res.ok && data.url) {
+                        payload.archivo_url = data.url;
+                        payload.nombre_archivo = data.nombre;
+                        payload.tipo_archivo = data.tipo;
+                    } else {
+                        throw new Error(data.error);
+                    }
+                } catch(err) {
+                    showNotification("Error al subir archivo: " + err.message, "error");
+                    progressLobbyChat.classList.add('d-none');
+                    return; // Abortar si falla la subida
+                }
+                progressLobbyChat.classList.add('d-none');
+                fileLobbyChat.value = ''; // Limpiar el input file
+                if (previewLobbyChat) previewLobbyChat.classList.add('d-none'); // Quitar vista previa
+            }
+
+            socket.emit('enviar_mensaje_lobby', payload);
+            inputLobbyChat.value = '';
+        });
+    }
+
+    socket.on('nuevo_mensaje_lobby', (data) => {
+        const isMe = data.remitente === myName;
+        const alignClass = isMe ? 'text-end' : 'text-start';
+        const bgClass = isMe ? 'bg-primary text-white' : 'bg-white border border-secondary text-dark';
+        
+        // Obtener la hora actual para mostrarla en el mensaje
+        const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const senderName = isMe ? 'Yo' : escapeHTML(data.remitente);
+        const nameLabel = `<div class="small text-muted mb-1" style="font-size: 0.7rem;">${senderName} • ${timeString}</div>`;
+
+        // Procesar si trae un archivo adjunto
+        let fileHtml = '';
+        if (data.archivo_url) {
+            const urlLower = data.archivo_url.toLowerCase();
+            if (urlLower.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/)) {
+                fileHtml = `<div class="mt-2"><img src="${data.archivo_url}" class="img-fluid rounded shadow-sm" style="max-height: 150px;"></div>`;
+            } else if (urlLower.match(/\.(mp3|wav|ogg)(\?.*)?$/)) {
+                fileHtml = `<div class="mt-2"><audio src="${data.archivo_url}" controls class="w-100 shadow-sm rounded" style="max-height: 40px;"></audio></div>`;
+            } else {
+                fileHtml = `<div class="mt-2"><a href="${data.archivo_url}" target="_blank" class="btn btn-sm btn-light text-dark w-100 border border-secondary text-truncate shadow-sm" title="${escapeHTML(data.nombre_archivo)}"><i class="bi bi-file-earmark-arrow-down-fill text-danger me-1"></i> ${escapeHTML(data.nombre_archivo)}</a></div>`;
+            }
+        }
+
+        // Si el mensaje solo contiene archivo, no mostrar burbuja de texto vacía
+        const textHtml = data.texto ? `<div>${escapeHTML(data.texto)}</div>` : '';
+
+        const msgHtml = `
+            <div class="mb-3 animate__animated animate__fadeInUp ${alignClass}">
+                ${nameLabel}
+                <div class="d-inline-block p-2 rounded-4 shadow-sm ${bgClass}" style="max-width: 85%; font-size: 0.9rem; text-align: left;">
+                    ${textHtml}
+                    ${fileHtml}
+                </div>
+            </div>
+        `;
+        
+        if (messagesLobbyChat) {
+            messagesLobbyChat.insertAdjacentHTML('beforeend', msgHtml);
+            messagesLobbyChat.scrollTop = messagesLobbyChat.scrollHeight;
+        }
+        
+        if (!isMe) {
+            const isChatOpen = chatOffcanvas && chatOffcanvas.classList.contains('show');
+            if (!isChatOpen) {
+                unreadMessagesCount++;
+                if (chatBadge) {
+                    chatBadge.classList.remove('d-none');
+                    chatBadge.innerText = unreadMessagesCount > 99 ? '99+' : unreadMessagesCount;
+                }
+                showNotification(`💬 Nuevo mensaje de ${escapeHTML(data.remitente)}`, 'info');
+            }
+        }
+    });
+
 });
 </script>
 {% endblock %}

@@ -327,6 +327,15 @@ def handle_borrar_material(data):
         estado_lobby['materiales'] = [m for m in estado_lobby['materiales'] if m.get('id') != mat_id]
         emit('actualizar_materiales', estado_lobby['materiales'], room='LobbyGlobal')
 
+# =======================================================
+# --- EVENTO DEL CHAT OFFCANVAS DE LA SALA ---
+# =======================================================
+@socketio.on('enviar_mensaje_lobby')
+def handle_mensaje_lobby(data):
+    """ Este evento recibe los mensajes del panel lateral y los emite a la sala """
+    emit('nuevo_mensaje_lobby', data, room='LobbyGlobal')
+
+
 if __name__ == '__main__':
     app = create_app()
     socketio.run(app, host='0.0.0.0', port=3000, debug=True)
